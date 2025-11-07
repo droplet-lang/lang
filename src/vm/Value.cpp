@@ -16,7 +16,7 @@
 #include "Object.h"
 
 Value Value::createNIL() {
-    return Value();
+    return {};
 }
 
 Value Value::createBOOL(const bool v) {

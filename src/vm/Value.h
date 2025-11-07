@@ -42,15 +42,15 @@ struct Value {
 
     static Value createNIL();
 
-    static Value createBOOL(const bool v);
+    static Value createBOOL(bool v);
 
-    static Value createINT(const int v);
+    static Value createINT(int v);
 
-    static Value createDOUBLE(const double v);
+    static Value createDOUBLE(double v);
 
     static Value createOBJECT(Object* v);
 
-    std::string toString() const;
+    [[nodiscard]] std::string toString() const;
 };
 
 
