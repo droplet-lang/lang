@@ -8,4 +8,5 @@ add_executable(droplet main.cpp
         src/vm/VM.h
         src/vm/Value.cpp
         src/vm/Value.h
+        src/vm/Object.h
 )

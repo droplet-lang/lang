@@ -13,6 +13,7 @@
  * ============================================================
  */
 #include "Value.h"
+#include "Object.h"
 
 Value Value::createNIL() {
     return Value();
@@ -39,9 +40,23 @@ Value Value::createDOUBLE(const double v) {
     return vo;
 }
 
-Value Value::createOBJECT(VMObject* v) {
+Value Value::createOBJECT(Object* v) {
     Value vo;
     vo.type = ValueType::OBJECT;
     vo.current_value.object = v;
     return vo;
+}
+
+std::string Value::toString() const {
+    switch(type) {
+        case ValueType::NIL: return "nil";
+        case ValueType::BOOL: return current_value.b ? "true" : "false";
+        case ValueType::INT: return std::to_string(current_value.i);
+        case ValueType::DOUBLE: return std::to_string(current_value.d);
+        case ValueType::OBJECT:
+            if (!current_value.object)
+                return "nilobj";
+            return current_value.object->get_representor();
+    }
+    return "????";
 }

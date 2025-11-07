@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <string>
 
-struct VMObject;
+struct Object;
 
 enum class ValueType {
     NIL = 0,
@@ -37,7 +37,7 @@ struct Value {
         bool b;
         int64_t i; // int does not have fixed size, so let's use int(64)
         double d;
-        VMObject *object;
+        Object *object;
     } current_value{};
 
     static Value createNIL();
@@ -48,7 +48,7 @@ struct Value {
 
     static Value createDOUBLE(const double v);
 
-    static Value createOBJECT(VMObject* v);
+    static Value createOBJECT(Object* v);
 
     std::string toString() const;
 };
