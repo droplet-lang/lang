@@ -6,7 +6,7 @@
 5. FFI
 6. Runtime Error Handling
 
-![]("assets/dlvm.png")
+![](assets/dlvm.png)
 
 ## Bytecodes
 ```
