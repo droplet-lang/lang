@@ -15,6 +15,7 @@
 #ifndef DROPLET_VM_H
 #define DROPLET_VM_H
 
+
 class VM {
 };
 
