@@ -51,6 +51,8 @@ struct Value {
     static Value createOBJECT(Object* v);
 
     [[nodiscard]] std::string toString() const;
+
+    [[nodiscard]] bool isTruthy() const;
 };
 
 

@@ -60,3 +60,14 @@ std::string Value::toString() const {
     }
     return "????";
 }
+
+bool Value::isTruthy() const {
+    switch(type) {
+        case ValueType::NIL: return false;
+        case ValueType::BOOL: return current_value.b;
+        case ValueType::INT: return current_value.i != 0;
+        case ValueType::DOUBLE: return current_value.d != 0.0;
+        case ValueType::OBJECT: return current_value.object != nullptr;
+    }
+    return false;
+}

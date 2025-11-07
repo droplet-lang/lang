@@ -30,7 +30,7 @@ Map Ops: AMP_SET, MAP_GET
 
 String Ops: STRING_CONCAT, STRING_LENGTH, STRING_SUBSTR, STRING_EQ, STRING_GET_CHAR
 
-Err Handling: TRY, CATCH, THROW or go like??? (TODO: @svpz), if yes RETURN should support args
+Globals: LOAD_GLOBAL, STORE_GLOBAL
 ```
 
 ### Usecase
