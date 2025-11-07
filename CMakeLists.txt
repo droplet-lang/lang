@@ -6,4 +6,6 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(droplet main.cpp
         src/vm/VM.cpp
         src/vm/VM.h
+        src/vm/Value.cpp
+        src/vm/Value.h
 )

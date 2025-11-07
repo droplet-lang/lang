@@ -12,12 +12,11 @@
  *  Created: 11/7/2025
  * ============================================================
  */
-#ifndef PANI_VM_H
-#define PANI_VM_H
-
+#ifndef DROPLET_VM_H
+#define DROPLET_VM_H
 
 class VM {
 };
 
 
-#endif //PANI_VM_H
+#endif //DROPLET_VM_H
