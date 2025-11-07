@@ -17,9 +17,11 @@
 #include <functional>
 
 #include "Value.h"
+#include "VM.h"
 
 typedef std::function<void(Value)> MarkerFunction;
 typedef std::function<void(MarkerFunction)> RWComplexGCFunction;
+typedef std::function<void(VM&, int)> NativeFunction;
 
 // operations (see /docs/vm.md for design)
 // Seperated each type into multiple of 10 group (easy for future debug)
