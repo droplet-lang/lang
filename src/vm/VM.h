@@ -127,6 +127,9 @@ struct VM {
     // loader and runner
     bool load_dbc_file(const std::string &path);
     void run(); // This is going to be huge rn, won-t refactor for clarity unless finalized
+
+    // helper
+    uint32_t add_global_string_constant(const std::string &s);
 };
 
 
