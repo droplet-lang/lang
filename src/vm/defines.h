@@ -17,7 +17,8 @@
 #include <functional>
 
 #include "Value.h"
-#include "VM.h"
+
+struct VM;
 
 typedef std::function<void(Value)> MarkerFunction;
 typedef std::function<void(MarkerFunction)> RWComplexGCFunction;

@@ -1,5 +1,5 @@
-#include <iostream>
+#include "src/tests/Value_obj_test.h"
 
 int main() {
-    std::cout << "Droplet!\n";
+    TEST_VALUE_OBJECT();
 }

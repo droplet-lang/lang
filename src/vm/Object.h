@@ -85,7 +85,7 @@ struct ObjMap final : Object {
     }
 
     void markChildren(const MarkerFunction fn) override {
-        for (const auto &val: value | std::views::values) fn(val);
+        for (const auto &val: value) fn(val.second);
     }
 };
 
@@ -102,7 +102,7 @@ struct ObjInstance final : Object {
     }
 
     void markChildren(const MarkerFunction fn) override {
-        for (const auto &val: fields | std::views::values) fn(val);
+        for (const auto &val: fields) fn(val.second);
     }
 };
 

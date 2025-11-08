@@ -191,7 +191,7 @@ void VM::perform_gc() {
         for (uint32_t i = 0; i < sp; i++) mark(stack[i]);
 
         // globals
-        for (const auto &val: globals | std::views::values) mark(val);
+        for (const auto &val: globals) mark(val.second);
         // function constants (if we used global constants)
         // nothing else
     });
