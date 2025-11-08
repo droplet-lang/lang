@@ -29,4 +29,5 @@ add_executable(droplet main.cpp
         src/compiler/Semantic.h
         src/compiler/Compiler.cpp
         src/compiler/Compiler.h
+        src/tests/LexerTest.h
 )

@@ -1,5 +1,5 @@
-#include "src/tests/VM_test.h"
+#include "src/tests/LexerTest.h"
 
 int main() {
-    ALL_TESTS_VM();
+    ALL_TESTS_COMBINED();
 }
