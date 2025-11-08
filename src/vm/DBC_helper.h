@@ -186,6 +186,14 @@ public:
             return emit(OP_MAP_SET);
         }
 
+        FunctionBuilder& callFFI(const uint32_t libIdx, const uint32_t symIdx, const uint8_t argc, const uint8_t sig) {
+            return emit(OP_CALL_FFI)
+                .emitU32(libIdx)
+                .emitU32(symIdx)
+                .emitU8(argc)
+                .emitU8(sig);
+        }
+
         // Get current code position (useful for jump targets)
         uint32_t currentPos() const {
             return static_cast<uint32_t>(code.size());

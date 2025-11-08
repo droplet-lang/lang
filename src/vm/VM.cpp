@@ -646,8 +646,7 @@ void VM::run() {
                     for (int i = 0; i < argc; i++) pop_back();
                     push_back(Value::createNIL());
                 } else {
-                    // call native with VM& and argCount; native should pop args and push return
-                    // it->second(*this, argc); ????
+                    it->second(*this, argc);
                 }
                 break;
             }
@@ -656,18 +655,20 @@ void VM::run() {
                 uint32_t symIdx = read_u32(frame);
                 uint8_t argc = read_u8(frame);
                 uint8_t sig = read_u8(frame);
-                (void) sig;
+
                 if (libIdx >= global_constants.size() || symIdx >= global_constants.size()) {
                     std::cerr << "CALL_FFI: bad idx\n";
-                    for (int i = 0; i < argc; i++) pop_back();
+                    for (int i = 0; i < argc; i++)
+                        pop_back();
                     push_back(Value::createNIL());
                     break;
                 }
+
                 auto *libNameObj = dynamic_cast<ObjString *>(global_constants[libIdx].current_value.object);
-                auto symNameObj = dynamic_cast<ObjString *>(global_constants[symIdx].current_value.object);
+                auto *symNameObj = dynamic_cast<ObjString *>(global_constants[symIdx].current_value.object);
+
                 if (!libNameObj || !symNameObj) {
                     std::cerr << "CALL_FFI: name types\n";
-
                     for (int i = 0; i < argc; i++)
                         pop_back();
                     push_back(Value::createNIL());
@@ -678,7 +679,6 @@ void VM::run() {
                 if (!h) {
                     for (int i = 0; i < argc; i++)
                         pop_back();
-
                     push_back(Value::createNIL());
                     break;
                 }
@@ -690,6 +690,70 @@ void VM::run() {
                         pop_back();
                     push_back(Value::createNIL());
                     break;
+                }
+
+                // Actually call the FFI function!
+                // This is a simplified version - proper implementation needs libffi
+                // For now, we support simple signatures based on 'sig' parameter
+
+                std::vector<Value> args;
+                for (int i = 0; i < argc; i++) {
+                    args.insert(args.begin(), pop_back());
+                }
+
+                // Signature encoding:
+                // 0 = int32(int32, int32)
+                // 1 = int32(int32)
+                // 2 = double(double, double)
+                // etc.
+
+                if (sig == 0 && argc == 2) {
+                    // int32_t func(int32_t, int32_t)
+                    typedef int32_t (*FFIFunc2Int)(int32_t, int32_t);
+                    auto func = reinterpret_cast<FFIFunc2Int>(sym);
+
+                    int32_t arg0 = (args[0].type == ValueType::INT)
+                                       ? static_cast<int32_t>(args[0].current_value.i)
+                                       : 0;
+                    int32_t arg1 = (args[1].type == ValueType::INT)
+                                       ? static_cast<int32_t>(args[1].current_value.i)
+                                       : 0;
+
+                    int32_t result = func(arg0, arg1);
+                    push_back(Value::createINT(result));
+                } else if (sig == 1 && argc == 1) {
+                    // int32_t func(int32_t)
+                    typedef int32_t (*FFIFunc1Int)(int32_t);
+                    auto func = reinterpret_cast<FFIFunc1Int>(sym);
+
+                    int32_t arg0 = (args[0].type == ValueType::INT)
+                                       ? static_cast<int32_t>(args[0].current_value.i)
+                                       : 0;
+
+                    int32_t result = func(arg0);
+                    push_back(Value::createINT(result));
+                } else if (sig == 2 && argc == 2) {
+                    // double func(double, double)
+                    typedef double (*FFIFunc2Double)(double, double);
+                    auto func = reinterpret_cast<FFIFunc2Double>(sym);
+
+                    double arg0 = (args[0].type == ValueType::DOUBLE)
+                                      ? args[0].current_value.d
+                                      : (args[0].type == ValueType::INT
+                                             ? static_cast<double>(args[0].current_value.i)
+                                             : 0.0);
+                    double arg1 = (args[1].type == ValueType::DOUBLE)
+                                      ? args[1].current_value.d
+                                      : (args[1].type == ValueType::INT
+                                             ? static_cast<double>(args[1].current_value.i)
+                                             : 0.0);
+
+                    double result = func(arg0, arg1);
+                    push_back(Value::createDOUBLE(result));
+                } else {
+                    std::cerr << "CALL_FFI: unsupported signature "
+                            << static_cast<int>(sig) << "\n";
+                    push_back(Value::createNIL());
                 }
 
                 break;
