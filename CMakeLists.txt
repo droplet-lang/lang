@@ -19,4 +19,14 @@ add_executable(droplet main.cpp
         src/tests/VM_test.h
         src/vm/DBC_helper.cpp
         src/vm/DBC_helper.h
+        src/compiler/Lexer.cpp
+        src/compiler/Lexer.h
+        src/compiler/Parser.cpp
+        src/compiler/Parser.h
+        src/compiler/AST.cpp
+        src/compiler/AST.h
+        src/compiler/Semantic.cpp
+        src/compiler/Semantic.h
+        src/compiler/Compiler.cpp
+        src/compiler/Compiler.h
 )
