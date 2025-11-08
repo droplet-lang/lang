@@ -40,11 +40,11 @@ struct CallFrame {
 };
 
 struct FFI {
-    // Todo (@svpz) how do we load??
-    // maybe we can track like:
-    //  X ==== ptr to loaded X lib (pX)
-    //  Y ==== ptr to loaded Y lib (pY)
-    //  and then findSymbol(pX, "add")
+    std::unordered_map<std::string, void*> libs;
+
+    void* load_lib(const std::string &path);
+
+    static void* find_symbol(void* lib, const std::string &symbol);
 };
 
 struct VM {
@@ -76,9 +76,7 @@ struct VM {
     std::vector<CallFrame> call_frames;
 
     static uint8_t read_u8(CallFrame &frame);
-
     static uint8_t read_u16(CallFrame &frame);
-
     static uint8_t read_u32(CallFrame &frame);
 
     // "RETURN 2" means return top 2 value from stack
@@ -125,11 +123,40 @@ struct VM {
     static int32_t read_i32(const std::vector<uint8_t> &buf, size_t &off);
 
     // loader and runner
+    /*
+     * The dbc file will be the one containing information about constants, functions and code
+     * It's format:
+     *
+     *     |  HEADER "DLBC" (4)           |    VERSION (1)    |
+     *     |  constant_count (u32t)       |    [...constants] |
+     *     |  function_count (u32t)       |    [...fn header] |
+     *     |  code_size (u32t)            |    [...byte code] |
+     *
+     * Here:
+     *
+     * [...constants]
+     *      TYPE (u8t) == which indicate size of this constant in consequitive byte
+     *          1 = i32t
+     *          2 = double
+     *          3 = u32t len; bytes[len] (for string)
+     *          4 = no data (NIL0
+     *          5 = u8t(0/1 - BOOL)
+     *
+     * [...fn header]
+     *      u32t nameIndex
+     *      u32t start
+     *      u32t size
+     *      u8t  argCount
+     *      u8t  localCount
+     */
     bool load_dbc_file(const std::string &path);
     void run(); // This is going to be huge rn, won-t refactor for clarity unless finalized
 
     // helper
     uint32_t add_global_string_constant(const std::string &s);
+
+    // ffi
+    FFI ffi;
 };
 
 
