@@ -15,7 +15,31 @@
 #include "VM.h"
 
 #include <cmath>
+#include <fstream>
 #include <iostream>
+#include "../external/dlfcn/dlfcn.h"
+
+void *FFI::load_lib(const std::string &path) {
+    auto it = libs.find(path);
+    if (it != libs.end()) return it->second;
+
+
+    void *h = dlopen(path.c_str(), RTLD_NOW);
+    if (!h) {
+        std::cerr << "[FFI] dlopen failed: " << dlerror() << '\n';
+        return nullptr;
+    }
+
+    libs[path] = h;
+    return h;
+}
+
+void *FFI::find_symbol(void *lib, const std::string &symbol) {
+    if (!lib) return nullptr;
+
+    void *p = dlsym(lib, symbol.c_str());
+    return p;
+}
 
 void VM::push(const Value &value) {
     if (sp >= stack.size()) {
@@ -207,6 +231,176 @@ int32_t VM::read_i32(const std::vector<uint8_t> &buf, size_t &off) {
 }
 
 bool VM::load_dbc_file(const std::string &path) {
+    /*
+     * The dbc file will be the one containing information about constants, functions and code
+     * It's format:
+     *
+     *     |  HEADER "DLBC" (4)           |    VERSION (1)    |
+     *     |  constant_count (u32t)       |    [...constants] |
+     *     |  function_count (u32t)       |    [...fn header] |
+     *     |  code_size (u32t)            |    [...byte code] |
+     *
+     * Here:
+     *
+     * [...constants]
+     *      TYPE (u8t) == which indicate size of this constant in consequitive byte
+     *          1 = i32t
+     *          2 = double
+     *          3 = u32t len; bytes[len] (for string)
+     *          4 = no data (NIL0
+     *          5 = u8t(0/1 - BOOL)
+     *
+     * [...fn header]
+     *      u32t nameIndex
+     *      u32t start
+     *      u32t size
+     *      u8t  argCount
+     *      u8t  localCount
+    */
+    std::ifstream f(path, std::ios::binary);
+
+    if (!f.is_open()) {
+        std::cerr << "Failed to open " << path << "\n";
+        return false;
+    }
+
+    std::vector<uint8_t> buf((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    size_t off = 0;
+    if (buf.size() < 5) {
+        std::cerr << "Invalid dbc\n";
+        return false;
+    }
+
+    // check if there is a correct magic string
+    std::string magic(reinterpret_cast<char *>(&buf[off]), 4);
+    off += 4;
+
+    if (magic != "DLBC") {
+        std::cerr << "Bad magic\n";
+        return false;
+    }
+
+    // test curr version
+    uint8_t version = read_u8(buf, off);
+    if (version != 1) { // Todo (@svpz) hardcoded version doesnot make sense
+        std::cerr << "Unsupported version\n";
+        return false;
+    }
+
+    // constants (global pool)
+    uint32_t constCount = read_u32(buf, off);
+
+    // create a list that can hold up constants
+    std::vector<Value> constPool;
+    constPool.reserve(constCount);
+
+    for (uint32_t i = 0; i < constCount; i++) {
+        uint8_t t = read_u8(buf, off);
+
+        if (t == 1) {
+            // INT
+            int32_t vi = read_i32(buf, off);
+            constPool.push_back(Value::createINT(vi));
+        } else if (t == 2) {
+            // DOUBLE
+            double dv = read_double(buf, off);
+            constPool.push_back(Value::createDOUBLE(dv));
+        } else if (t == 3) {
+            // STRING
+            uint32_t len = read_u32(buf, off);
+            std::string s(reinterpret_cast<char *>(&buf[off]), len);
+            off += len;
+            ObjString *os = allocate_string(s);
+            constPool.push_back(Value::createOBJECT(os));
+        } else if (t == 4) {
+            // NIL
+            constPool.push_back(Value::createNIL());
+        } else if (t == 5) {
+            // BOOL
+            uint8_t b = read_u8(buf, off);
+            constPool.push_back(Value::createBOOL(b != 0));
+        } else {
+            std::cerr << "Unknown const type " << static_cast<int>(t) << "\n";
+            return false;
+        }
+    }
+
+    // functions
+    uint32_t fnCount = read_u32(buf, off);
+
+    struct FnHeader {
+        uint32_t nameIndex;
+        uint32_t start;
+        uint32_t size;
+        uint8_t argCount;
+        uint8_t localCount;
+    };
+
+    std::vector<FnHeader> headers;
+    headers.reserve(fnCount);
+    for (uint32_t i = 0; i < fnCount; i++) {
+        FnHeader h;
+        h.nameIndex = read_u32(buf, off);
+        h.start = read_u32(buf, off);
+        h.size = read_u32(buf, off);
+        h.argCount = read_u8(buf, off);
+        h.localCount = read_u8(buf, off);
+        headers.push_back(h);
+    }
+
+    // code section size
+    uint32_t codeSize = read_u32(buf, off);
+
+    if (off + codeSize > buf.size()) {
+        std::cerr << "Bad code size\n";
+        return false;
+    }
+
+    std::vector code(buf.begin() + off, buf.begin() + off + codeSize);
+    off += codeSize;
+
+    // create Function entries, each referring to its sub-slice of code and constants.
+    for (uint32_t i = 0; i < fnCount; i++) {
+        FnHeader &h = headers[i];
+        // name from constPool[nameIndex]
+        if (h.nameIndex >= constPool.size() || constPool[h.nameIndex].type != ValueType::OBJECT) {
+            std::cerr << "Invalid name index for function header\n";
+            return false;
+        }
+
+        auto on = dynamic_cast<ObjString *>(constPool[h.nameIndex].current_value.object);
+        if (!on) {
+            std::cerr << "Function name not string\n";
+            return false;
+        }
+
+        std::string fname = on->value;
+        auto fn = std::make_unique<Function>();
+
+        fn->name = fname;
+        fn->argCount = h.argCount;
+        fn->localCount = h.localCount;
+
+        // For simplicity: all function constants will be empty here (we use global constants only)
+        // copy the code slice
+        if (h.start + h.size > code.size()) {
+            std::cerr << "Function code out of bounds\n";
+            return false;
+        }
+
+        fn->code.assign(code.begin() + h.start, code.begin() + h.start + h.size);
+
+        // add to function table
+        uint32_t idx = static_cast<uint32_t>(functions.size());
+        function_index_by_name[fn->name] = idx;
+        functions.push_back(std::move(fn));
+    }
+
+    // for now we store global constants (strings) as globalConstants
+    for (auto &c: constPool) global_constants.push_back(c);
+
+    std::cerr << "Loaded module '" << path << "' functions=" << fnCount << " constants=" << constCount << " code=" << codeSize << "\n";
+    return true;
 }
 
 void VM::run() {
@@ -301,8 +495,9 @@ void VM::run() {
                 if (static_cast<Op>(op) == OP_DIV) res = da / db;
                 if (static_cast<Op>(op) == OP_MOD) res = fmod(da, db);
                 // if both ints and not DIV -> int
-                if (!aDouble && !bDouble && static_cast<Op>(op) != OP_DIV) push_back(
-                    Value::createINT(static_cast<int64_t>(res)));
+                if (!aDouble && !bDouble && static_cast<Op>(op) != OP_DIV)
+                    push_back(
+                        Value::createINT(static_cast<int64_t>(res)));
                 else push_back(Value::createDOUBLE(res));
                 break;
             }
@@ -454,9 +649,49 @@ void VM::run() {
                 }
                 break;
             }
-            case OP_CALL_FFI:
-                // Todo: @svpz
+            case OP_CALL_FFI: {
+                uint32_t libIdx = read_u32(frame);
+                uint32_t symIdx = read_u32(frame);
+                uint8_t argc = read_u8(frame);
+                uint8_t sig = read_u8(frame);
+                (void) sig;
+                if (libIdx >= global_constants.size() || symIdx >= global_constants.size()) {
+                    std::cerr << "CALL_FFI: bad idx\n";
+                    for (int i = 0; i < argc; i++) pop_back();
+                    push_back(Value::createNIL());
+                    break;
+                }
+                auto *libNameObj = dynamic_cast<ObjString *>(global_constants[libIdx].current_value.object);
+                auto symNameObj = dynamic_cast<ObjString *>(global_constants[symIdx].current_value.object);
+                if (!libNameObj || !symNameObj) {
+                    std::cerr << "CALL_FFI: name types\n";
+
+                    for (int i = 0; i < argc; i++)
+                        pop_back();
+                    push_back(Value::createNIL());
+                    break;
+                }
+
+                void *h = ffi.load_lib(libNameObj->value);
+                if (!h) {
+                    for (int i = 0; i < argc; i++)
+                        pop_back();
+
+                    push_back(Value::createNIL());
+                    break;
+                }
+
+                void *sym = ffi.find_symbol(h, symNameObj->value);
+                if (!sym) {
+                    std::cerr << "CALL_FFI: symbol missing\n";
+                    for (int i = 0; i < argc; i++)
+                        pop_back();
+                    push_back(Value::createNIL());
+                    break;
+                }
+
                 break;
+            }
             case OP_NEW_OBJECT: {
                 uint32_t nameIdx = read_u32(frame);
                 if (nameIdx >= global_constants.size()) {
@@ -576,11 +811,11 @@ void VM::run() {
                 Value vb = pop_back();
                 Value va = pop_back();
                 std::string sa = (va.type == ValueType::OBJECT && va.current_value.object)
-                                ? dynamic_cast<ObjString *>(va.current_value.object)->value
-                                : va.toString();
+                                     ? dynamic_cast<ObjString *>(va.current_value.object)->value
+                                     : va.toString();
                 std::string sb = (vb.type == ValueType::OBJECT && vb.current_value.object)
-                                ? dynamic_cast<ObjString *>(vb.current_value.object)->value
-                                : vb.toString();
+                                     ? dynamic_cast<ObjString *>(vb.current_value.object)->value
+                                     : vb.toString();
                 ObjString *sNew = allocate_string(sa + sb);
                 push_back(Value::createOBJECT(sNew));
                 break;
@@ -602,7 +837,7 @@ void VM::run() {
                 uint32_t len = read_u32(frame);
                 Value s = pop_back();
                 if (s.type == ValueType::OBJECT && s.current_value.object) {
-                    ObjString *os = dynamic_cast<ObjString *>(s.current_value.object);
+                    auto *os = dynamic_cast<ObjString *>(s.current_value.object);
                     if (os) {
                         uint32_t st = start;
                         if (st > os->value.size()) st = os->value.size();
@@ -619,11 +854,11 @@ void VM::run() {
                 Value b = pop_back();
                 Value a = pop_back();
                 std::string sa = (a.type == ValueType::OBJECT && a.current_value.object)
-                                ? dynamic_cast<ObjString *>(a.current_value.object)->value
-                                : a.toString();
+                                     ? dynamic_cast<ObjString *>(a.current_value.object)->value
+                                     : a.toString();
                 std::string sb = (b.type == ValueType::OBJECT && b.current_value.object)
-                                ? dynamic_cast<ObjString *>(b.current_value.object)->value
-                                : b.toString();
+                                     ? dynamic_cast<ObjString *>(b.current_value.object)->value
+                                     : b.toString();
                 push_back(Value::createBOOL(sa == sb));
                 break;
             }
@@ -651,7 +886,7 @@ void VM::run() {
                     push_back(Value::createNIL());
                     break;
                 }
-                ObjString *on = dynamic_cast<ObjString *>(global_constants[nameIdx].current_value.object);
+                auto *on = dynamic_cast<ObjString *>(global_constants[nameIdx].current_value.object);
                 if (!on) {
                     push_back(Value::createNIL());
                     break;
@@ -679,7 +914,7 @@ void VM::run() {
 }
 
 uint32_t VM::add_global_string_constant(const std::string &s) {
-    ObjString* os = allocate_string(s);
+    ObjString *os = allocate_string(s);
     const auto idx = static_cast<uint32_t>(global_constants.size());
     global_constants.push_back(Value::createOBJECT(os));
     return idx;

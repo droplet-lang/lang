@@ -12,4 +12,6 @@ add_executable(droplet main.cpp
         src/vm/GC.cpp
         src/vm/GC.h
         src/vm/defines.h
+        src/external/dlfcn/dlfcn.h
+        src/external/dlfcn/dlfcn.c
 )
