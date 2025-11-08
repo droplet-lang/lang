@@ -71,6 +71,8 @@ enum Op: uint8_t {
     OP_NEW_OBJECT = 0x60,
     OP_GET_FIELD = 0x61,
     OP_SET_FIELD = 0x62,
+    OP_NEW_ARRAY = 0x63,
+    OP_NEW_MAP = 0x64,
 
     // Array ops
     OP_ARRAY_GET = 0x70,

@@ -1,5 +1,5 @@
-#include "src/tests/Value_obj_test.h"
+#include "src/tests/VM_test.h"
 
 int main() {
-    TEST_VALUE_OBJECT();
+    ALL_TESTS_VM();
 }

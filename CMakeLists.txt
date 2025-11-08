@@ -16,4 +16,7 @@ add_executable(droplet main.cpp
         src/external/dlfcn/dlfcn.c
         src/tests/GC_test.h
         src/tests/Value_obj_test.h
+        src/tests/VM_test.h
+        src/vm/DBC_helper.cpp
+        src/vm/DBC_helper.h
 )

@@ -282,7 +282,8 @@ bool VM::load_dbc_file(const std::string &path) {
 
     // test curr version
     uint8_t version = read_u8(buf, off);
-    if (version != 1) { // Todo (@svpz) hardcoded version doesnot make sense
+    if (version != 1) {
+        // Todo (@svpz) hardcoded version doesnot make sense
         std::cerr << "Unsupported version\n";
         return false;
     }
@@ -399,7 +400,8 @@ bool VM::load_dbc_file(const std::string &path) {
     // for now we store global constants (strings) as globalConstants
     for (auto &c: constPool) global_constants.push_back(c);
 
-    std::cerr << "Loaded module '" << path << "' functions=" << fnCount << " constants=" << constCount << " code=" << codeSize << "\n";
+    std::cerr << "Loaded module '" << path << "' functions=" << fnCount << " constants=" << constCount << " code=" <<
+            codeSize << "\n";
     return true;
 }
 
@@ -905,7 +907,17 @@ void VM::run() {
                 globals[on->value] = val;
                 break;
             }
+            case OP_NEW_ARRAY: {
+                ObjArray *arr = allocate_array();
+                push_back(Value::createOBJECT(arr));
+                break;
+            }
 
+            case OP_NEW_MAP: {
+                ObjMap *map = allocate_map();
+                push_back(Value::createOBJECT(map));
+                break;
+            }
             default:
                 std::cerr << "Unimplemented opcode: " << static_cast<int>(op) << "\n";
                 return;
