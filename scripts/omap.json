@@ -1,0 +1,56 @@
+{
+  "1": {"name": "OP_PUSH_CONST", "operands": ["u32"]},
+  "2": {"name": "OP_POP", "operands": []},
+  "3": {"name": "OP_LOAD_LOCAL", "operands": ["u8"]},
+  "4": {"name": "OP_STORE_LOCAL", "operands": ["u8"]},
+  "5": {"name": "OP_DUP", "operands": []},
+  "6": {"name": "OP_SWAP", "operands": []},
+  "7": {"name": "OP_ROT", "operands": []},
+
+  "16": {"name": "OP_ADD", "operands": []},
+  "17": {"name": "OP_SUB", "operands": []},
+  "18": {"name": "OP_MUL", "operands": []},
+  "19": {"name": "OP_DIV", "operands": []},
+  "20": {"name": "OP_MOD", "operands": []},
+
+  "32": {"name": "OP_AND", "operands": []},
+  "33": {"name": "OP_OR", "operands": []},
+  "34": {"name": "OP_NOT", "operands": []},
+
+  "48": {"name": "OP_EQ", "operands": []},
+  "49": {"name": "OP_NEQ", "operands": []},
+  "50": {"name": "OP_LT", "operands": []},
+  "51": {"name": "OP_GT", "operands": []},
+  "52": {"name": "OP_LTE", "operands": []},
+  "53": {"name": "OP_GTE", "operands": []},
+
+  "64": {"name": "OP_JUMP", "operands": ["u32"]},
+  "65": {"name": "OP_JUMP_IF_FALSE", "operands": ["u32"]},
+  "66": {"name": "OP_JUMP_IF_TRUE", "operands": ["u32"]},
+
+  "80": {"name": "OP_CALL", "operands": ["u32","u8"]},
+  "81": {"name": "OP_RETURN", "operands": ["u8"]},
+  "82": {"name": "OP_CALL_NATIVE", "operands": ["u32","u8"]},
+  "83": {"name": "OP_CALL_FFI", "operands": ["u32","u32","u8","u8"]},
+
+  "96": {"name": "OP_NEW_OBJECT", "operands": ["u32"]},
+  "97": {"name": "OP_GET_FIELD", "operands": ["u32"]},
+  "98": {"name": "OP_SET_FIELD", "operands": ["u32"]},
+  "99": {"name": "OP_NEW_ARRAY", "operands": []},
+  "100": {"name": "OP_NEW_MAP", "operands": []},
+
+  "112": {"name": "OP_ARRAY_GET", "operands": []},
+  "113": {"name": "OP_ARRAY_SET", "operands": []},
+
+  "128": {"name": "OP_MAP_SET", "operands": []},
+  "129": {"name": "OP_MAP_GET", "operands": []},
+
+  "144": {"name": "OP_STRING_CONCAT", "operands": []},
+  "145": {"name": "OP_STRING_LENGTH", "operands": []},
+  "146": {"name": "OP_STRING_SUBSTR", "operands": []},
+  "147": {"name": "OP_STRING_EQ", "operands": []},
+  "148": {"name": "OP_STRING_GET_CHAR", "operands": []},
+
+  "160": {"name": "OP_LOAD_GLOBAL", "operands": ["u32"]},
+  "161": {"name": "OP_STORE_GLOBAL", "operands": ["u32"]}
+}
