@@ -1,6 +1,6 @@
-mod geometry.shapes
+mod lib.geometry.shapes
 
-import math.basic
+import lib.math.basic
 
 class Rectangle {
     width: float

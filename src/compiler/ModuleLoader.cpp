@@ -22,8 +22,8 @@
 
 ModuleLoader::ModuleLoader() {
     // Add default search paths
-    searchPaths.push_back(".");                    // Current directory
-    searchPaths.push_back("./.dp_modules");        //  similar like node_modules
+    searchPaths.emplace_back("."); // Current directory
+    searchPaths.emplace_back("./.dp_modules"); //  similar like node_modules
 
     // We can make the libraries shared as well??
     // or should we make this as like dart which just support including from inside the folder??
@@ -31,14 +31,14 @@ ModuleLoader::ModuleLoader() {
     // similar like global download and project specific download
 }
 
-void ModuleLoader::addSearchPath(const std::string& path) {
+void ModuleLoader::addSearchPath(const std::string &path) {
     searchPaths.push_back(path);
 }
 
-std::string ModuleLoader::modulePathToFilePath(const std::string& modulePath) {
+std::string ModuleLoader::modulePathToFilePath(const std::string &modulePath) {
     std::string filePath = modulePath;
 
-    for (char& c : filePath) {
+    for (char &c: filePath) {
         if (c == '.') {
             c = '/';
         }
@@ -49,21 +49,39 @@ std::string ModuleLoader::modulePathToFilePath(const std::string& modulePath) {
 }
 
 std::string ModuleLoader::resolveModulePath(const std::string& modulePath) const {
-    std::string relativeFile = modulePathToFilePath(modulePath);
+    const std::string relativeFile = modulePathToFilePath(modulePath);
+    const fs::path relativePath(relativeFile);
 
-    // Search in all paths
     for (const auto& searchPath : searchPaths) {
-        fs::path fullPath = fs::path(searchPath) / relativeFile;
 
-        if (fs::exists(fullPath)) {
-            return fullPath.string();
+        if (!fs::exists(searchPath)) {
+            std::cerr << "  [!] Path does not exist, skipping.\n";
+            continue;
+        }
+
+        try {
+            for (auto& entry : fs::recursive_directory_iterator(
+                     searchPath, fs::directory_options::skip_permission_denied)) {
+
+                if (!entry.is_regular_file())
+                    continue;
+
+                const fs::path& entryPath = entry.path();
+
+                if (fs::path rel = fs::relative(entryPath, searchPath); rel == relativePath) {
+                    return entryPath.string();
+                }
+                     }
+        } catch (const fs::filesystem_error& e) {
+            std::cerr << "  [Warning] Could not access directory '" << searchPath << "': " << e.what() << "\n";
+            continue;
         }
     }
 
     return "";  // Not found
 }
 
-std::unique_ptr<Program> ModuleLoader::parseModuleFile(const std::string& filePath) {
+std::unique_ptr<Program> ModuleLoader::parseModuleFile(const std::string &filePath) {
     // Read file
     std::ifstream file(filePath);
     if (!file.is_open()) {
@@ -84,38 +102,38 @@ std::unique_ptr<Program> ModuleLoader::parseModuleFile(const std::string& filePa
     try {
         Program program = parser.parse();
         return std::make_unique<Program>(std::move(program));
-    } catch (const ParseError& e) {
+    } catch (const ParseError &e) {
         std::cerr << "Error parsing module " << filePath << ": " << e.what() << "\n";
         return nullptr;
     }
 }
 
-void ModuleLoader::extractExports(ModuleInfo* module) {
+void ModuleLoader::extractExports(ModuleInfo *module) {
     if (!module || !module->ast) return;
 
     // Extract all top-level functions
-    for (const auto& func : module->ast->functions) {
+    for (const auto &func: module->ast->functions) {
         module->exportedFunctions.push_back(func->name);
     }
 
     // Extract all classes
-    for (const auto& cls : module->ast->classes) {
+    for (const auto &cls: module->ast->classes) {
         module->exportedClasses.push_back(cls->name);
     }
 
     std::cerr << "Module '" << module->modulePath << "' exports:\n";
     std::cerr << "  Functions: ";
-    for (const auto& name : module->exportedFunctions) {
+    for (const auto &name: module->exportedFunctions) {
         std::cerr << name << " ";
     }
     std::cerr << "\n  Classes: ";
-    for (const auto& name : module->exportedClasses) {
+    for (const auto &name: module->exportedClasses) {
         std::cerr << name << " ";
     }
     std::cerr << "\n";
 }
 
-ModuleInfo* ModuleLoader::loadModule(const std::string& modulePath) {
+ModuleInfo *ModuleLoader::loadModule(const std::string &modulePath) {
     // Check if already loaded
     const auto it = loadedModules.find(modulePath);
     if (it != loadedModules.end()) {
@@ -129,7 +147,7 @@ ModuleInfo* ModuleLoader::loadModule(const std::string& modulePath) {
     const std::string filePath = resolveModulePath(modulePath);
     if (filePath.empty()) {
         std::cerr << "Error: Module '" << modulePath << "' not found in search paths:\n";
-        for (const auto& path : searchPaths) {
+        for (const auto &path: searchPaths) {
             std::cerr << "  - " << path << "\n";
         }
         return nullptr;
@@ -162,22 +180,22 @@ ModuleInfo* ModuleLoader::loadModule(const std::string& modulePath) {
     extractExports(module.get());
 
     // Store module
-    ModuleInfo* modulePtr = module.get();
+    ModuleInfo *modulePtr = module.get();
     loadedModules[modulePath] = std::move(module);
 
     // Recursively load imports
-    for (const auto& import : modulePtr->ast->imports) {
+    for (const auto &import: modulePtr->ast->imports) {
         loadModule(import->modulePath);
     }
 
     return modulePtr;
 }
 
-bool ModuleLoader::isLoaded(const std::string& modulePath) const {
+bool ModuleLoader::isLoaded(const std::string &modulePath) const {
     return loadedModules.contains(modulePath);
 }
 
-ModuleInfo* ModuleLoader::getModule(const std::string& modulePath) {
+ModuleInfo *ModuleLoader::getModule(const std::string &modulePath) {
     const auto it = loadedModules.find(modulePath);
     if (it != loadedModules.end()) {
         return it->second.get();

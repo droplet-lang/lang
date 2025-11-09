@@ -1,3 +1,4 @@
+// RIGHT NOW GENERICS IS NOT SUPPORTED
 class Box[T] {
     value: T
 

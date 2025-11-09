@@ -1,5 +1,5 @@
-import math.basic
-import geometry.shapes
+import lib.math.basic
+import lib.geometry.shapes
 
 // Or import specific symbols
 // import math.basic { add, multiply, square }

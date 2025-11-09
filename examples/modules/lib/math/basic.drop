@@ -1,4 +1,4 @@
-mod math.basic
+mod lib.math.basic
 
 fn add(a: int, b: int) -> int {
     return a + b
