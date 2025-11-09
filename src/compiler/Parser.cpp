@@ -14,7 +14,44 @@
  */
 #include "Parser.h"
 
+#include <iostream>
+
 Parser::Parser(std::vector<Token> tokens) : tokens(std::move(tokens)) {}
+
+Program Parser::parse() {
+    Program program;
+
+    try {
+        // Parse module declaration if present
+        if (check(TokenType::KW_MOD)) {
+            program.moduleDecl = parseModuleDecl();
+        }
+
+        // Parse imports
+        while (check(TokenType::KW_IMPORT) || check(TokenType::KW_USE)) {
+            program.imports.push_back(parseImportStmt());
+        }
+
+        // Parse top-level declarations
+        while (!isAtEnd()) {
+            // Check for @ffi
+            if (check(TokenType::AT_FFI)) {
+                program.functions.push_back(parseFFIDecl());
+            } else if (check(TokenType::KW_CLASS) || check(TokenType::KW_SEAL)) {
+                program.classes.push_back(parseClassDecl());
+            } else if (check(TokenType::KW_FN)) {
+                program.functions.push_back(parseFunctionDecl(false));
+            } else {
+                throw error("Expected class, function, or FFI declaration");
+            }
+        }
+    } catch (const ParseError& e) {
+        std::cerr << e.what() << std::endl;
+        throw;
+    }
+
+    return program;
+}
 
 Token Parser::peek() const {
     return tokens[current];

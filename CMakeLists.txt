@@ -38,4 +38,10 @@ add_executable(droplet main.cpp
         src/compiler/Program.h
         src/compiler/Parser.cpp
         src/compiler/Parser.h
+        src/compiler/CodeGenerator.cpp
+        src/compiler/CodeGenerator.h
+        src/compiler/ModuleLoader.cpp
+        src/compiler/ModuleLoader.h
+        src/compiler/TypeChecker.cpp
+        src/compiler/TypeChecker.h
 )
