@@ -1,6 +1,6 @@
 
-#include "src/tests/GC_test.h"
+#include "src/tests/Lexer_test.h"
 
 int main() {
-    TEST_GC();
+    TEST_LEXER();
 }
