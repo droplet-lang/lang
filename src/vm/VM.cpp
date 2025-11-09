@@ -104,24 +104,32 @@ uint8_t VM::read_u32(CallFrame &frame) {
 void VM::do_return(const uint8_t return_count) {
     if (call_frames.empty()) return;
 
-    // collect return values (supports only 1 for simplicity)
+    // Collect return values
     std::vector<Value> rets;
-
-    for (int i = 0; i < return_count; i++)
+    for (int i = 0; i < return_count; i++) {
         rets.push_back(pop_back());
+    }
 
     const CallFrame frame = call_frames.back();
     call_frames.pop_back();
 
-    // shrink stack to slotStart (drop locals and args)
+    // CORRECT FIX: The returning function's locals start at frame.localStartsAt
+    // We need to restore sp_internal to that position, which will:
+    // 1. Remove all the function's locals (arguments + additional locals)
+    // 2. Leave the caller's stack intact (because localStartsAt points to where
+    //    this function's data begins, which is AFTER the caller's data)
+
     const uint32_t restore = frame.localStartsAt;
 
-    while (sp_internal > restore)
-        pop_back();
+    // Restore stack pointer to before this function's locals
+    sp_internal = restore;
 
-    // push return values back in original order
-    for (int i = static_cast<int>(rets.size()) - 1; i >= 0; i--)
+
+    // Push return values
+    for (int i = static_cast<int>(rets.size()) - 1; i >= 0; i--) {
         push_back(rets[i]);
+    }
+
 }
 
 uint32_t VM::get_function_index(const std::string &name) {
@@ -432,11 +440,55 @@ void VM::run() {
                 pop_back();
                 break;
             }
+            case OP_CALL: {
+                uint32_t fnIdx = read_u32(frame);
+                uint8_t argc = read_u8(frame);
+
+                if (fnIdx >= functions.size()) {
+                    // pop args
+                    for (int i = 0; i < argc; i++) pop_back();
+                    push_back(Value::createNIL());
+                    break;
+                }
+
+                Function *callee = functions[fnIdx].get();
+
+                // The arguments are on the stack at positions [sp_internal - argc .. sp_internal - 1]
+                // These arguments become the first 'argc' locals of the called function
+                // localStartsAt points to where local 0 begins (which is the first argument)
+
+                CallFrame newFrame;
+                newFrame.function = callee;
+                newFrame.ip = 0;
+                newFrame.localStartsAt = sp_internal - argc;
+
+
+                // CRITICAL FIX: Ensure we have space for all locals (not just args)
+                // The function might have more locals than just the arguments
+                // We need to allocate space for localCount locals total
+
+                // Arguments occupy slots [0 .. argc-1]
+                // Additional locals occupy slots [argc .. localCount-1]
+                uint8_t additionalLocals = callee->localCount > argc ? callee->localCount - argc : 0;
+
+
+                // Push NIL for additional local variable slots
+                for (uint8_t i = 0; i < additionalLocals; i++) {
+                    push_back(Value::createNIL());
+                }
+
+                call_frames.push_back(newFrame);
+                break;
+            }
+
             case OP_LOAD_LOCAL: {
                 uint8_t slot = read_u8(frame);
                 uint32_t abs = frame.localStartsAt + slot;
+
+
                 if (abs < sp_internal) {
-                    push_back(stack_internal[abs]);
+                    Value val = stack_internal[abs];
+                    push_back(val);
                 } else {
                     push_back(Value::createNIL());
                 }
@@ -593,24 +645,6 @@ void VM::run() {
                 uint32_t target = read_u32(frame);
                 Value cond = pop_back();
                 if (cond.isTruthy()) frame.ip = target;
-                break;
-            }
-            case OP_CALL: {
-                uint32_t fnIdx = read_u32(frame);
-                uint8_t argc = read_u8(frame);
-                if (fnIdx >= functions.size()) {
-                    std::cerr << "CALL: bad function idx " << fnIdx << "\n";
-                    // pop args
-                    for (int i = 0; i < argc; i++) pop_back();
-                    push_back(Value::createNIL());
-                    break;
-                }
-                Function *callee = functions[fnIdx].get();
-                CallFrame newFrame;
-                newFrame.function = callee;
-                newFrame.ip = 0;
-                newFrame.localStartsAt = sp_internal - argc;
-                call_frames.push_back(newFrame);
                 break;
             }
             case OP_RETURN: {
@@ -770,26 +804,71 @@ void VM::run() {
                 push_back(Value::createOBJECT(inst));
                 break;
             }
+            case OP_IS_INSTANCE: {
+                uint32_t typeIdx = read_u32(frame);
+                Value objVal = pop_back();
+
+                if (typeIdx >= global_constants.size()) {
+                    push_back(Value::createBOOL(false));
+                    break;
+                }
+
+                auto* typeName = dynamic_cast<ObjString*>(global_constants[typeIdx].current_value.object);
+                if (!typeName) {
+                    push_back(Value::createBOOL(false));
+                    break;
+                }
+
+                if (objVal.type != ValueType::OBJECT || !objVal.current_value.object) {
+                    push_back(Value::createBOOL(false));
+                    break;
+                }
+
+                auto* instance = dynamic_cast<ObjInstance*>(objVal.current_value.object);
+                if (!instance) {
+                    push_back(Value::createBOOL(false));
+                    break;
+                }
+
+                // Check exact type match
+                bool matches = (instance->className == typeName->value);
+
+                push_back(Value::createBOOL(matches));
+                break;
+            }
             case OP_GET_FIELD: {
                 uint32_t nameIdx = read_u32(frame);
                 Value objv = pop_back();
+
                 if (objv.type != ValueType::OBJECT || !objv.current_value.object) {
                     push_back(Value::createNIL());
                     break;
                 }
+
+                // Get the field name from constants
+                if (nameIdx >= global_constants.size()) {
+                    push_back(Value::createNIL());
+                    break;
+                }
+
                 auto *on = dynamic_cast<ObjString *>(global_constants[nameIdx].current_value.object);
                 if (!on) {
                     push_back(Value::createNIL());
                     break;
                 }
+
                 auto *oi = dynamic_cast<ObjInstance *>(objv.current_value.object);
                 if (!oi) {
                     push_back(Value::createNIL());
                     break;
                 }
+
                 auto it = oi->fields.find(on->value);
-                if (it == oi->fields.end()) push_back(Value::createNIL());
-                else push_back(it->second);
+                if (it == oi->fields.end()) {
+                    push_back(Value::createNIL());
+                } else {
+                    push_back(it->second);
+                }
                 break;
             }
             case OP_SET_FIELD: {

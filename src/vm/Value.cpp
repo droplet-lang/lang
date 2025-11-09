@@ -48,17 +48,52 @@ Value Value::createOBJECT(Object* v) {
 }
 
 std::string Value::toString() const {
-    switch(type) {
-        case ValueType::NIL: return "nil";
-        case ValueType::BOOL: return current_value.b ? "true" : "false";
-        case ValueType::INT: return std::to_string(current_value.i);
-        case ValueType::DOUBLE: return std::to_string(current_value.d);
+    switch (type) {
+        case ValueType::INT:
+            return std::to_string(current_value.i);
+        case ValueType::DOUBLE:
+            return std::to_string(current_value.d);
+        case ValueType::BOOL:
+            return current_value.b ? "true" : "false";
+        case ValueType::NIL:
+            return "nil";
         case ValueType::OBJECT:
-            if (!current_value.object)
-                return "nilobj";
-            return current_value.object->get_representor();
+            if (!current_value.object) return "nil";
+
+            if (auto* str = dynamic_cast<ObjString*>(current_value.object)) {
+                // DON'T add quotes - just return the raw string
+                return str->value;
+            }
+
+            if (auto* arr = dynamic_cast<ObjArray*>(current_value.object)) {
+                std::string result = "[";
+                for (size_t i = 0; i < arr->value.size(); i++) {
+                    result += arr->value[i].toString();
+                    if (i < arr->value.size() - 1) result += ", ";
+                }
+                result += "]";
+                return result;
+            }
+
+            if (auto* map = dynamic_cast<ObjMap*>(current_value.object)) {
+                std::string result = "{";
+                bool first = true;
+                for (const auto& [k, v] : map->value) {
+                    if (!first) result += ", ";
+                    result += k + ": " + v.toString();
+                    first = false;
+                }
+                result += "}";
+                return result;
+            }
+
+            if (auto* inst = dynamic_cast<ObjInstance*>(current_value.object)) {
+                return "<object:" + inst->className + ">";
+            }
+
+            return "<object>";
     }
-    return "????";
+    return "<unknown>";
 }
 
 bool Value::isTruthy() const {

@@ -55,6 +55,7 @@ enum Op: uint8_t {
     OP_GT  = 0x33,
     OP_LTE = 0x34,
     OP_GTE = 0x35,
+    OP_IS_INSTANCE = 0x36,
 
     // Control flow
     OP_JUMP = 0x40,

@@ -194,6 +194,10 @@ public:
                 .emitU8(sig);
         }
 
+        FunctionBuilder& isInstance(uint32_t typeNameIdx) {
+            return emit(OP_IS_INSTANCE).emitU32(typeNameIdx);
+        }
+
         // Get current code position (useful for jump targets)
         uint32_t currentPos() const {
             return static_cast<uint32_t>(code.size());
@@ -291,6 +295,7 @@ public:
         return true;
     }
 
+    std::vector<FunctionBuilder> functions;
 private:
     struct Constant {
         uint8_t type;
@@ -298,7 +303,6 @@ private:
     };
 
     std::vector<Constant> constants;
-    std::vector<FunctionBuilder> functions;
 
     uint32_t findOrAddStringConstant(const std::string& str) {
         // Check if string already exists in constants
