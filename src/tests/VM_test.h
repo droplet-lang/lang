@@ -1,6 +1,6 @@
 /*
  * ============================================================
- *  Droplet 
+ *  Droplet
  * ============================================================
  *  Copyright (c) 2025 Droplet Contributors
  *  All rights reserved.
@@ -50,7 +50,8 @@ inline bool TEST_ARITHMETIC() {
 
     // Load and run
     VM vm;
-    if (!vm.load_dbc_file("test_arithmetic.dbc")) {
+    Loader loader;
+    if (!loader.load_dbc_file("test_arithmetic.dbc", vm)) {
         return false;
     }
 

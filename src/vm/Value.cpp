@@ -61,7 +61,6 @@ std::string Value::toString() const {
             if (!current_value.object) return "nil";
 
             if (auto* str = dynamic_cast<ObjString*>(current_value.object)) {
-                // DON'T add quotes - just return the raw string
                 return str->value;
             }
 

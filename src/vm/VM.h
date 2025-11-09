@@ -19,72 +19,38 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Allocator.h"
+#include "CallFrame.h"
 #include "defines.h"
-#include "GC.h"
+#include "FFI.h"
+#include "StackManager.h"
 #include "Value.h"
-
-struct VM;
-
-struct Function {
-    std::string name;
-    std::vector<Value> constants;
-    std::vector<uint8_t> code;
-    uint8_t argCount = 0;
-    uint8_t localCount = 0; // will include n(local_slots) + args
-};
-
-struct CallFrame {
-    Function *function = nullptr;
-    uint32_t ip = 0; // which line we are in, in the function code
-    uint32_t localStartsAt = 0; // index in VM stack, where this frame locals starts
-};
-
-struct FFI {
-    std::unordered_map<std::string, void*> libs;
-
-    void* load_lib(const std::string &path);
-
-    static void* find_symbol(void* lib, const std::string &symbol);
-};
 
 struct VM {
     VM() {
-        sp_internal = 0;
+        stack_manager.sp = 0;
     }
 
-    // stack
-    std::vector<Value> stack;
-    uint32_t sp = 0;
+    StackManager stack_manager;
+    FFI ffi;
+    Allocator allocator;
 
-    // ops
-    void push(const Value &value);
-    Value pop();
-    Value peek(int position) const;
+    // Native registry
+    std::unordered_map<std::string, NativeFunction> native_functions_registry;
+    void register_native(const std::string &name, NativeFunction fn);
 
-    // internal stack container used by run
-    std::vector<Value> stack_internal;
-    uint32_t sp_internal = 0;
-    uint32_t get_sp() const { return sp_internal; }
-
-    // Stack ops
-    void push_back(const Value &value);
-    Value pop_back();
-    Value peek_back(int position) const;
-
+    // global table
+    std::unordered_map<std::string, Value> globals;
+    std::vector<Value> global_constants;
+    uint32_t add_global_string_constant(const std::string &s);
 
     // frames
     std::vector<CallFrame> call_frames;
-
-    static uint8_t read_u8(CallFrame &frame);
-    static uint8_t read_u16(CallFrame &frame);
-    static uint8_t read_u32(CallFrame &frame);
 
     // "RETURN 2" means return top 2 value from stack
     // This is so that we can have go like err handling
     void do_return(uint8_t return_count);
 
-    // global table
-    std::unordered_map<std::string, Value> globals;
 
     // functions (loaded module)
     std::vector<std::unique_ptr<Function>> functions;
@@ -93,70 +59,9 @@ struct VM {
     uint32_t get_function_index(const std::string &name);
     void call_function_by_index(uint32_t fnIndex, size_t argCount);
 
-    // Native registry
-    std::unordered_map<std::string, NativeFunction> native_functions_registry;
 
-    void register_native(const std::string &name, NativeFunction fn);
-
-    // constants
-    std::vector<Value> global_constants;
-
-    // GC
-    GC gc;
-
-    // allocators
-    ObjString *allocate_string(const std::string &str);
-    ObjArray *allocate_array();
-    ObjMap *allocate_map();
-    ObjInstance *allocate_instance(const std::string &className);
-
-    // stack root walker for GC
-    void root_walker(const RWComplexGCFunction &walker);
-    void collect_garbage_if_needed();
-    void perform_gc();
-
-    // loader
-    static uint32_t read_u32(const std::vector<uint8_t> &buf, size_t &off);
-    static uint16_t read_u16(const std::vector<uint8_t> &buf, size_t &off);
-    static uint8_t read_u8(const std::vector<uint8_t> &buf, size_t &off);
-    static double read_double(const std::vector<uint8_t> &buf, size_t &off);
-    static int32_t read_i32(const std::vector<uint8_t> &buf, size_t &off);
-
-    // loader and runner
-    /*
-     * The dbc file will be the one containing information about constants, functions and code
-     * It's format:
-     *
-     *     |  HEADER "DLBC" (4)           |    VERSION (1)    |
-     *     |  constant_count (u32t)       |    [...constants] |
-     *     |  function_count (u32t)       |    [...fn header] |
-     *     |  code_size (u32t)            |    [...byte code] |
-     *
-     * Here:
-     *
-     * [...constants]
-     *      TYPE (u8t) == which indicate size of this constant in consequitive byte
-     *          1 = i32t
-     *          2 = double
-     *          3 = u32t len; bytes[len] (for string)
-     *          4 = no data (NIL0
-     *          5 = u8t(0/1 - BOOL)
-     *
-     * [...fn header]
-     *      u32t nameIndex
-     *      u32t start
-     *      u32t size
-     *      u8t  argCount
-     *      u8t  localCount
-     */
-    bool load_dbc_file(const std::string &path);
-    void run(); // This is going to be huge rn, won-t refactor for clarity unless finalized
-
-    // helper
-    uint32_t add_global_string_constant(const std::string &s);
-
-    // ffi
-    FFI ffi;
+    // This is going to be huge rn, won-t refactor for clarity unless finalized
+    void run();
 };
 
 

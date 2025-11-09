@@ -19,4 +19,15 @@ add_executable(droplet main.cpp
         src/tests/VM_test.h
         src/vm/DBC_helper.cpp
         src/vm/DBC_helper.h
+        src/vm/FFI.cpp
+        src/vm/FFI.h
+        src/vm/StackManager.cpp
+        src/vm/StackManager.h
+        src/vm/CallFrame.cpp
+        src/vm/CallFrame.h
+        src/vm/Loader.cpp
+        src/vm/Loader.h
+        src/vm/Allocator.cpp
+        src/vm/Allocator.h
+        src/vm/Function.h
 )
