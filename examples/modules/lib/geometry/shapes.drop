@@ -1,0 +1,41 @@
+mod geometry.shapes
+
+import math.basic
+
+class Rectangle {
+    width: float
+    height: float
+
+    new(width: float, height: float) {
+        self.width = width
+        self.height = height
+    }
+
+    fn area() -> float {
+        return self.width * self.height
+    }
+
+    fn perimeter() -> float {
+        return 2.0 * (self.width + self.height)
+    }
+}
+
+class Circle {
+    radius: float
+
+    new(radius: float) {
+        self.radius = radius
+    }
+
+    fn area() -> float {
+        return 3.14159 * self.radius * self.radius
+    }
+
+    fn circumference() -> float {
+        return 2.0 * 3.14159 * self.radius
+    }
+}
+
+fn calculateSquareArea(side: float) -> float {
+    return side * side
+}

@@ -1,0 +1,22 @@
+class Animal {
+    name: str = "s"
+    age: int
+
+    new(name: str, age: int) {
+    }
+
+    fn getInfo() -> str {
+        return self.name
+    }
+
+    fn speak() -> void {
+        println("Animal makes a sound")
+    }
+}
+
+fn main() {
+    let animal = Animal("Generic", 5)
+    animal.speak()
+    let info = animal.getInfo()
+    println("Name:", info)
+}

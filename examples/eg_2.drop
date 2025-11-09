@@ -1,0 +1,43 @@
+class Animal {
+    name: str
+    age: int
+
+    new(name: str, age: int) {
+        self.name = name
+        self.age = age
+    }
+
+    fn speak() {
+        println("Animal makes a sound")
+    }
+
+    fn getInfo() -> str {
+        return self.name
+    }
+}
+
+class Dog: Animal {
+    breed: str
+
+    new(name: str, age: int, breed: str) {
+        self.name = name
+        self.age = age
+        self.breed = breed
+    }
+
+    fn speak() {
+        println("Woof! I'm", self.name)
+    }
+
+    fn fetch() {
+        println(self.name, "is fetching the ball!")
+    }
+}
+
+fn main() {
+        let dog = Dog("Max", 3, "Labrador")
+        dog.speak()
+        dog.fetch()
+        print(dog.getInfo())
+        println()
+}

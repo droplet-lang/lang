@@ -1,0 +1,46 @@
+class Vector2D {
+    x: float
+    y: float
+
+    new(x: float, y: float) {
+        self.x = x
+        self.y = y
+    }
+
+    op +(other: Vector2D) -> Vector2D {
+        return Vector2D(self.x + other.x, self.y + other.y)
+    }
+
+    op -(other: Vector2D) -> Vector2D {
+        return Vector2D(self.x - other.x, self.y - other.y)
+    }
+
+    op *(scalar: float) -> Vector2D {
+        return Vector2D(self.x * scalar, self.y * scalar)
+    }
+
+    op ==(other: Vector2D) -> bool {
+        return self.x == other.x && self.y == other.y
+    }
+
+    fn magnitude() -> float {
+        return (self.x * self.x + self.y * self.y)
+    }
+
+    fn print() {
+        println("Vector(", self.x, ",", self.y, ")")
+    }
+}
+
+
+fn main() {
+    println("=== Operator Overloading ===")
+    let v1 = Vector2D(3.0, 4.0)
+    let v2 = Vector2D(1.0, 2.0)
+    let v3 = v1 + v2
+    v3.print()
+    let v4 = v1 - v2
+    v4.print()
+    let v5 = v1 * 2.0
+    v5.print()
+}

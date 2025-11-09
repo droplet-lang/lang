@@ -1,0 +1,19 @@
+class Box[T] {
+    value: T
+
+    new(value: T) {
+        self.value = value
+    }
+
+    fn get() -> T {
+        return self.value
+    }
+
+    fn set(newValue: T) {
+        self.value = newValue
+    }
+}
+
+fn main() {
+
+}

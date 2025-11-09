@@ -1,0 +1,11 @@
+seal class FinalClass {
+    value: int
+
+    new(value: int) {
+        self.value = value
+    }
+}
+
+class m: FinalClass {}
+
+fn main() {}

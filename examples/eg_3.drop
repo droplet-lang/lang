@@ -1,0 +1,17 @@
+class MathHelper {
+    static PI: float = 3.14159
+
+    new() {
+        // Empty constructor
+    }
+
+    static fn square(x: int) -> int {
+        return x * x
+    }
+}
+
+fn main() {
+        let squared = MathHelper.square(5)
+        println("5 squared:", squared)
+        println()
+}

@@ -1,0 +1,283 @@
+fn demonstrateLists() {
+    println("=== List Examples ===")
+
+    // Create a list
+    let numbers = [1, 2, 3, 4, 5]
+    println("Original list:", numbers)
+
+    // Access elements
+    let first = numbers[0]
+    println("First element:", first)
+
+    // Modify elements
+    numbers[2] = 99
+    println("Modified list:", numbers)
+
+    // Empty list
+    let empty = []
+    println("Empty list:", empty)
+}
+
+fn demonstrateIfElse(x: int) {
+    println("=== If/Else Example ===")
+
+    if x > 0 {
+        println(x, "is positive")
+    } else if x < 0 {
+        println(x, "is negative")
+    } else {
+        println(x, "is zero")
+    }
+}
+
+fn demonstrateWhile() {
+    println("=== While Loop ===")
+
+    let count = 0
+    while count < 5 {
+        println("Count:", count)
+        count = count + 1
+    }
+}
+
+fn demonstrateFor() {
+    println("=== For Loop ===")
+
+    let items = [10, 20, 30, 40, 50]
+    for item in items {
+        println("Item:", item)
+    }
+}
+
+fn demonstrateLoop() {
+    println("=== Loop with Break/Continue ===")
+
+    let i = 0
+    loop {
+        i = i + 1
+
+        if i == 3 {
+            println("Skipping 3")
+            continue
+        }
+
+        if i > 5 {
+            println("Breaking at", i)
+            break
+        }
+
+        println("i =", i)
+    }
+}
+
+class Animal {
+    name: str
+    age: int
+
+    new(name: str, age: int) {
+        self.name = name
+        self.age = age
+    }
+
+    fn speak() {
+        println("Animal makes a sound")
+    }
+
+    fn getInfo() -> str {
+        return self.name
+    }
+}
+
+class Dog: Animal {
+    breed: str
+
+    new(name: str, age: int, breed: str) {
+        self.name = name
+        self.age = age
+        self.breed = breed
+    }
+
+    fn speak() {
+        println("Woof! I'm", self.name)
+    }
+
+    fn fetch() {
+        println(self.name, "is fetching the ball!")
+    }
+}
+
+fn demonstrateTypeCasting() {
+    println("=== Type Casting ===")
+
+    let x: int = 42
+    let y: float = x as float
+    println("int to float:", y)
+
+    // Type checking
+    let obj: Animal = Dog("Buddy", 5, "Golden Retriever")
+    if obj is Dog {
+        println("obj is a Dog!")
+    }
+}
+
+fn demonstrateCompoundAssignment() {
+    println("=== Compound Assignment ===")
+
+    let x = 10
+    println("Initial x:", x)
+
+    x += 5
+    println("After x += 5:", x)
+
+    x -= 3
+    println("After x -= 3:", x)
+}
+
+fn demonstrateLogicalOperators(a: bool, b: bool) {
+    println("=== Logical Operators ===")
+    println("a:", a, "b:", b)
+    println("a && b:", a && b)
+    println("a || b:", a || b)
+    println("!a:", !a)
+}
+
+fn demonstrateComparisons() {
+    println("=== Comparisons ===")
+
+    let x = 10
+    let y = 20
+
+    println(x, "==", y, ":", x == y)
+    println(x, "!=", y, ":", x != y)
+    println(x, "<", y, ":", x < y)
+    println(x, "<=", y, ":", x <= y)
+    println(x, ">", y, ":", x > y)
+    println(x, ">=", y, ":", x >= y)
+}
+
+fn demonstrateArithmetic() {
+    println("=== Arithmetic ===")
+
+    let a = 15
+    let b = 4
+
+    println(a, "+", b, "=", a + b)
+    println(a, "-", b, "=", a - b)
+    println(a, "*", b, "=", a * b)
+    println(a, "/", b, "=", a / b)
+    println(a, "%", b, "=", a % b)
+}
+
+fn demonstrateUnary() {
+    println("=== Unary Operators ===")
+
+    let x = 10
+    let negX = -x
+    println("-x:", negX)
+
+    let flag = true
+    println("!flag:", !flag)
+}
+
+fn demonstrateNull() {
+    println("=== Null Values ===")
+
+    let x: int = 0
+    println("x is zero:", x)
+}
+
+fn demonstrateStrings() {
+    println("=== Strings ===")
+
+    let greeting = "Hello"
+    let name = "World"
+
+    // String concatenation
+    let message = greeting + " " + name
+    println("Concatenation:", message)
+
+    println("Just a string literal:", "test123")
+}
+
+fn calculateRectangleArea(width: float, height: float) -> float {
+    return width * height
+}
+
+fn calculateCircleArea(radius: float) -> float {
+    return 3.14159 * radius * radius
+}
+
+fn demonstrateTypeInference() {
+    println("=== Type Inference ===")
+
+    let inferredInt = 42
+    let inferredFloat = 3.14
+    let inferredBool = true
+    let inferredString = "Hello"
+
+    println("Inferred int:", inferredInt)
+    println("Inferred float:", inferredFloat)
+    println("Inferred bool:", inferredBool)
+    println("Inferred string:", inferredString)
+}
+
+fn demonstrateExplicitTypes() {
+    println("=== Explicit Types ===")
+
+    let x: int = 100
+    let y: float = 2.5
+    let z: bool = false
+    let s: str = "explicit"
+
+    println("Explicit int:", x)
+    println("Explicit float:", y)
+    println("Explicit bool:", z)
+    println("Explicit string:", s)
+}
+
+fn main() {
+      demonstrateLists()
+      demonstrateIfElse(10)
+      demonstrateIfElse(-5)
+      demonstrateIfElse(0)
+      println()
+
+      demonstrateWhile()
+      println()
+
+      demonstrateFor()
+      println()
+
+      demonstrateLoop()
+      println()
+
+      demonstrateTypeCasting()
+
+      demonstrateCompoundAssignment()
+
+      demonstrateLogicalOperators(true, false)
+
+      demonstrateComparisons()
+
+      demonstrateArithmetic()
+
+      demonstrateUnary()
+
+      demonstrateNull()
+
+      demonstrateStrings()
+
+      println("=== Functions ===")
+      let area1 = calculateRectangleArea(10.0, 5.0)
+      println("Calculated rectangle area:", area1)
+
+      let area2 = calculateCircleArea(3.0)
+      println("Calculated circle area:", area2)
+      println()
+
+      demonstrateTypeInference()
+      println()
+
+      demonstrateExplicitTypes()
+      println()
+}

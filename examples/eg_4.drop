@@ -1,0 +1,33 @@
+class BankAccount {
+    pub name: str
+    priv balance: float
+    prot accountNumber: str
+
+    new(name: str, initialBalance: float) {
+        self.name = name
+        self.balance = initialBalance
+        self.accountNumber = "ACC123"
+    }
+
+    pub fn deposit(amount: float) {
+        self.balance = self.balance + amount
+        println("Deposited:", amount)
+    }
+
+    pub fn getBalance() -> float {
+        return self.balance
+    }
+
+    priv fn calculateInterest() -> float {
+        return self.balance * 0.05
+    }
+}
+
+fn main() {
+    println("=== Bank Account ===")
+    let account = BankAccount("John", 1000.0)
+    account.deposit(500.0)
+    let balance = account.getBalance()
+    println("Balance:", balance)
+    println()
+}

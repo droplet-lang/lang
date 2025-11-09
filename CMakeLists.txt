@@ -16,7 +16,6 @@ add_executable(droplet main.cpp
         src/external/dlfcn/dlfcn.c
         src/tests/GC_test.h
         src/tests/Value_obj_test.h
-        src/tests/VM_test.h
         src/vm/DBC_helper.cpp
         src/vm/DBC_helper.h
         src/vm/FFI.cpp
@@ -30,4 +29,6 @@ add_executable(droplet main.cpp
         src/vm/Allocator.cpp
         src/vm/Allocator.h
         src/vm/Function.h
+        src/compiler/Lexer.cpp
+        src/compiler/Lexer.h
 )

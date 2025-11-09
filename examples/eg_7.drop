@@ -1,0 +1,51 @@
+class Shape {
+    color: str
+
+    new(color: str) {
+        self.color = color
+    }
+
+    fn area() -> float {
+        return 0.0
+    }
+}
+
+class Rectangle: Shape {
+    width: float
+    height: float
+
+    new(color: str, width: float, height: float) {
+        self.color = color
+        self.width = width
+        self.height = height
+    }
+
+    fn area() -> float {
+        return self.width * self.height
+    }
+}
+
+class Circle: Shape {
+    radius: float
+
+    new(color: str, radius: float) {
+        self.color = color
+        self.radius = radius
+    }
+
+    fn area() -> float {
+        return 3.14159 * self.radius * self.radius
+    }
+}
+
+fn main() {
+     println("=== Shapes ===")
+        let rect = Rectangle("red", 5.0, 3.0)
+        let rectArea = rect.area()
+        println("Rectangle area:", rectArea)
+
+        let circle = Circle("blue", 4.0)
+        let circleArea = circle.area()
+        println("Circle area:", circleArea)
+        println()
+}
