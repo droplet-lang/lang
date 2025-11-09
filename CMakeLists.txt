@@ -44,4 +44,6 @@ add_executable(droplet main.cpp
         src/compiler/ModuleLoader.h
         src/compiler/TypeChecker.cpp
         src/compiler/TypeChecker.h
+        src/native/Native.cpp
+        src/native/Native.h
 )

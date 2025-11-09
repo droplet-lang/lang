@@ -14,6 +14,8 @@
  */
 #include "StackManager.h"
 
+#include <iostream>
+
 #include "VM.h"
 
 void StackManager::push(const Value &value) {
@@ -21,8 +23,8 @@ void StackManager::push(const Value &value) {
         stack.push_back(value);
     } else {
         stack[sp] = value;
-        sp++;
     }
+    sp++;
 }
 
 Value StackManager::pop() {
