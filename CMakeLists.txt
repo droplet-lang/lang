@@ -33,4 +33,9 @@ add_executable(droplet main.cpp
         src/compiler/Lexer.h
         src/compiler/Lexer.cpp
         src/tests/Lexer_test.h
+        src/compiler/Expr.h
+        src/compiler/Stmt.h
+        src/compiler/Program.h
+        src/compiler/Parser.cpp
+        src/compiler/Parser.h
 )
