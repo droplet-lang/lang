@@ -713,17 +713,18 @@ void VM::run() {
                 globals[on->value] = val;
                 break;
             }
+
             case OP_NEW_ARRAY: {
                 ObjArray *arr = allocator.allocate_array();
                 stack_manager.push(Value::createOBJECT(arr));
                 break;
-            }
-
+}
             case OP_NEW_MAP: {
                 ObjMap *map = allocator.allocate_map();
                 stack_manager.push(Value::createOBJECT(map));
                 break;
             }
+
             default:
                 std::cerr << "Unimplemented opcode: " << static_cast<int>(op) << "\n";
                 return;

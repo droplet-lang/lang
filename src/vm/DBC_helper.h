@@ -8,7 +8,7 @@
  *  Licensed under the MIT License.
  *  See LICENSE file in the project root for full license.
  *
- *  File: DBC_helper
+ *  File: DBC_helper.h
  *  Created: 11/8/2025
  * ============================================================
  */
@@ -17,9 +17,7 @@
 
 #include <string>
 #include <vector>
-#include <cstring>
-#include <fstream>
-#include <iostream>
+#include <cstdint>
 #include "defines.h"
 
 class DBCBuilder {
@@ -27,42 +25,11 @@ public:
     DBCBuilder() = default;
 
     // Add constants to the constant pool
-    uint32_t addConstInt(const int32_t value) {
-        const uint32_t idx = static_cast<uint32_t>(constants.size());
-        constants.push_back({1, std::vector<uint8_t>()});
-        write_i32(constants.back().data, value);
-        return idx;
-    }
-
-    uint32_t addConstDouble(const double value) {
-        const uint32_t idx = static_cast<uint32_t>(constants.size());
-        constants.push_back({2, std::vector<uint8_t>()});
-        write_double(constants.back().data, value);
-        return idx;
-    }
-
-    uint32_t addConstString(const std::string& value) {
-        const uint32_t idx = static_cast<uint32_t>(constants.size());
-        constants.push_back({3, std::vector<uint8_t>()});
-        write_u32(constants.back().data, static_cast<uint32_t>(value.size()));
-        for (const char c : value) {
-            constants.back().data.push_back(static_cast<uint8_t>(c));
-        }
-        return idx;
-    }
-
-    uint32_t addConstNil() {
-        const uint32_t idx = static_cast<uint32_t>(constants.size());
-        constants.push_back({4, std::vector<uint8_t>()});
-        return idx;
-    }
-
-    uint32_t addConstBool(const bool value) {
-        const uint32_t idx = static_cast<uint32_t>(constants.size());
-        constants.push_back({5, std::vector<uint8_t>()});
-        constants.back().data.push_back(value ? 1 : 0);
-        return idx;
-    }
+    uint32_t addConstInt(int32_t value);
+    uint32_t addConstDouble(double value);
+    uint32_t addConstString(const std::string& value);
+    uint32_t addConstNil();
+    uint32_t addConstBool(bool value);
 
     struct FunctionBuilder {
         std::string name;
@@ -70,232 +37,49 @@ public:
         uint8_t localCount = 0;
         std::vector<uint8_t> code;
 
-        FunctionBuilder& setName(const std::string& n) {
-            name = n;
-            return *this;
-        }
-
-        FunctionBuilder& setArgCount(const uint8_t count) {
-            argCount = count;
-            return *this;
-        }
-
-        FunctionBuilder& setLocalCount(const uint8_t count) {
-            localCount = count;
-            return *this;
-        }
+        FunctionBuilder& setName(const std::string& n);
+        FunctionBuilder& setArgCount(uint8_t count);
+        FunctionBuilder& setLocalCount(uint8_t count);
 
         // Emit opcodes
-        FunctionBuilder& emit(const Op op) {
-            code.push_back(static_cast<uint8_t>(op));
-            return *this;
-        }
+        FunctionBuilder& emit(Op op);
+        FunctionBuilder& emitU8(uint8_t val);
+        FunctionBuilder& emitU16(uint16_t val);
+        FunctionBuilder& emitU32(uint32_t val);
 
-        FunctionBuilder& emitU8(const uint8_t val) {
-            code.push_back(val);
-            return *this;
-        }
-
-        FunctionBuilder& emitU16(const uint16_t val) {
-            code.push_back(static_cast<uint8_t>(val & 0xFF));
-            code.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
-            return *this;
-        }
-
-        FunctionBuilder& emitU32(const uint32_t val) {
-            code.push_back(static_cast<uint8_t>(val & 0xFF));
-            code.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
-            code.push_back(static_cast<uint8_t>((val >> 16) & 0xFF));
-            code.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
-            return *this;
-        }
-
-        FunctionBuilder& pushConst(const uint32_t constIdx) {
-            return emit(OP_PUSH_CONST).emitU32(constIdx);
-        }
-
-        FunctionBuilder& loadLocal(const uint8_t slot) {
-            return emit(OP_LOAD_LOCAL).emitU8(slot);
-        }
-
-        FunctionBuilder& storeLocal(const uint8_t slot) {
-            return emit(OP_STORE_LOCAL).emitU8(slot);
-        }
-
-        FunctionBuilder& loadGlobal(const uint32_t nameIdx) {
-            return emit(OP_LOAD_GLOBAL).emitU32(nameIdx);
-        }
-
-        FunctionBuilder& storeGlobal(const uint32_t nameIdx) {
-            return emit(OP_STORE_GLOBAL).emitU32(nameIdx);
-        }
-
-        FunctionBuilder& call(const uint32_t fnIdx, const uint8_t argc) {
-            return emit(OP_CALL).emitU32(fnIdx).emitU8(argc);
-        }
-
-        FunctionBuilder& ret(const uint8_t retCount = 1) {
-            return emit(OP_RETURN).emitU8(retCount);
-        }
-
-        FunctionBuilder& jump(const uint32_t target) {
-            return emit(OP_JUMP).emitU32(target);
-        }
-
-        FunctionBuilder& jumpIfFalse(const uint32_t target) {
-            return emit(OP_JUMP_IF_FALSE).emitU32(target);
-        }
-
-        FunctionBuilder& jumpIfTrue(const uint32_t target) {
-            return emit(OP_JUMP_IF_TRUE).emitU32(target);
-        }
-
-        FunctionBuilder& newArray() {
-            return emit(OP_NEW_ARRAY);
-        }
-
-        FunctionBuilder& newMap() {
-            return emit(OP_NEW_MAP);
-        }
-
-        FunctionBuilder& newObject(const uint32_t classNameIdx) {
-            return emit(OP_NEW_OBJECT).emitU32(classNameIdx);
-        }
-
-        FunctionBuilder& getField(const uint32_t fieldNameIdx) {
-            return emit(OP_GET_FIELD).emitU32(fieldNameIdx);
-        }
-
-        FunctionBuilder& setField(const uint32_t fieldNameIdx) {
-            return emit(OP_SET_FIELD).emitU32(fieldNameIdx);
-        }
-
-        FunctionBuilder& arrayGet() {
-            return emit(OP_ARRAY_GET);
-        }
-
-        FunctionBuilder& arraySet() {
-            return emit(OP_ARRAY_SET);
-        }
-
-        FunctionBuilder& mapGet() {
-            return emit(OP_MAP_GET);
-        }
-
-        FunctionBuilder& mapSet() {
-            return emit(OP_MAP_SET);
-        }
-
-        FunctionBuilder& callFFI(const uint32_t libIdx, const uint32_t symIdx, const uint8_t argc, const uint8_t sig) {
-            return emit(OP_CALL_FFI)
-                .emitU32(libIdx)
-                .emitU32(symIdx)
-                .emitU8(argc)
-                .emitU8(sig);
-        }
-
-        FunctionBuilder& isInstance(uint32_t typeNameIdx) {
-            return emit(OP_IS_INSTANCE).emitU32(typeNameIdx);
-        }
+        FunctionBuilder& pushConst(uint32_t constIdx);
+        FunctionBuilder& loadLocal(uint8_t slot);
+        FunctionBuilder& storeLocal(uint8_t slot);
+        FunctionBuilder& loadGlobal(uint32_t nameIdx);
+        FunctionBuilder& storeGlobal(uint32_t nameIdx);
+        FunctionBuilder& call(uint32_t fnIdx, uint8_t argc);
+        FunctionBuilder& ret(uint8_t retCount = 1);
+        FunctionBuilder& jump(uint32_t target);
+        FunctionBuilder& jumpIfFalse(uint32_t target);
+        FunctionBuilder& jumpIfTrue(uint32_t target);
+        FunctionBuilder& newArray();
+        FunctionBuilder& newMap();
+        FunctionBuilder& newObject(uint32_t classNameIdx);
+        FunctionBuilder& getField(uint32_t fieldNameIdx);
+        FunctionBuilder& setField(uint32_t fieldNameIdx);
+        FunctionBuilder& arrayGet();
+        FunctionBuilder& arraySet();
+        FunctionBuilder& mapGet();
+        FunctionBuilder& mapSet();
+        FunctionBuilder& callFFI(uint32_t libIdx, uint32_t symIdx, uint8_t argc, uint8_t sig);
+        FunctionBuilder& isInstance(uint32_t typeNameIdx);
 
         // Get current code position (useful for jump targets)
-        uint32_t currentPos() const {
-            return static_cast<uint32_t>(code.size());
-        }
+        uint32_t currentPos() const;
     };
 
-    FunctionBuilder& addFunction(const std::string& name) {
-        functions.emplace_back();
-        functions.back().name = name;
-        return functions.back();
-    }
+    FunctionBuilder& addFunction(const std::string& name);
 
     // Write the DBC file
-    bool writeToFile(const std::string& path) {
-        std::ofstream file(path, std::ios::binary);
-        if (!file.is_open()) {
-            std::cerr << "Failed to open " << path << " for writing\n";
-            return false;
-        }
-
-        // FIRST: Add all function names to constants (before writing constants section)
-        std::vector<uint32_t> functionNameIndices;
-
-        for (auto& fn : functions) {
-            uint32_t nameIdx = findOrAddStringConstant(fn.name);
-            functionNameIndices.push_back(nameIdx);
-        }
-
-        // Header: "DLBC"
-        file.write("DLBC", 4);
-
-        // Version: 1
-        constexpr uint8_t version = 1;
-        file.write(reinterpret_cast<const char*>(&version), 1);
-
-        // Constants section
-        const uint32_t constCount = static_cast<uint32_t>(constants.size());
-        write_to_file(file, constCount);
-
-        for (auto& c : constants) {
-            file.write(reinterpret_cast<const char*>(&c.type), 1);
-            file.write(reinterpret_cast<const char*>(c.data.data()), c.data.size());
-        }
-
-        // Build unified code section and function headers
-        std::vector<uint8_t> unifiedCode;
-        struct FnHeader {
-            uint32_t nameIdx;
-            uint32_t start;
-            uint32_t size;
-            uint8_t argCount;
-            uint8_t localCount;
-        };
-        std::vector<FnHeader> headers;
-
-        for (auto& fn : functions) {
-            // Find or add function name to constants
-            const uint32_t nameIdx = findOrAddStringConstant(fn.name);
-
-            FnHeader h;
-            h.nameIdx = nameIdx;
-            h.start = static_cast<uint32_t>(unifiedCode.size());
-            h.size = static_cast<uint32_t>(fn.code.size());
-            h.argCount = fn.argCount;
-            h.localCount = fn.localCount;
-            headers.push_back(h);
-
-            // Append code
-            unifiedCode.insert(unifiedCode.end(), fn.code.begin(), fn.code.end());
-        }
-
-        // Write function count
-        const uint32_t fnCount = static_cast<uint32_t>(functions.size());
-        write_to_file(file, fnCount);
-
-        // Write function headers
-        for (auto& h : headers) {
-            write_to_file(file, h.nameIdx);
-            write_to_file(file, h.start);
-            write_to_file(file, h.size);
-            file.write(reinterpret_cast<const char*>(&h.argCount), 1);
-            file.write(reinterpret_cast<const char*>(&h.localCount), 1);
-        }
-
-        // Write code section
-        const uint32_t codeSize = static_cast<uint32_t>(unifiedCode.size());
-        write_to_file(file, codeSize);
-        file.write(reinterpret_cast<const char*>(unifiedCode.data()), codeSize);
-
-        file.close();
-        std::cout << "DBC file written: " << path << "\n";
-        std::cout << "  Constants: " << constCount << "\n";
-        std::cout << "  Functions: " << fnCount << "\n";
-        std::cout << "  Code size: " << codeSize << " bytes\n";
-        return true;
-    }
+    bool writeToFile(const std::string& path);
 
     std::vector<FunctionBuilder> functions;
+
 private:
     struct Constant {
         uint8_t type;
@@ -304,47 +88,12 @@ private:
 
     std::vector<Constant> constants;
 
-    uint32_t findOrAddStringConstant(const std::string& str) {
-        // Check if string already exists in constants
-        for (size_t i = 0; i < constants.size(); ++i) {
-            if (constants[i].type == 3) { // String type
-                // Extract string from data
-                uint32_t len;
-                memcpy(&len, constants[i].data.data(), sizeof(uint32_t));
-                std::string existing(reinterpret_cast<const char*>(constants[i].data.data() + 4), len);
-                if (existing == str) {
-                    return static_cast<uint32_t>(i);
-                }
-            }
-        }
-        // Not found, add new
-        return addConstString(str);
-    }
+    uint32_t findOrAddStringConstant(const std::string& str);
 
-    static void write_i32(std::vector<uint8_t>& buf, const int32_t val) {
-        buf.push_back(static_cast<uint8_t>(val & 0xFF));
-        buf.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
-        buf.push_back(static_cast<uint8_t>((val >> 16) & 0xFF));
-        buf.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
-    }
-
-    static void write_u32(std::vector<uint8_t>& buf, const uint32_t val) {
-        buf.push_back(static_cast<uint8_t>(val & 0xFF));
-        buf.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
-        buf.push_back(static_cast<uint8_t>((val >> 16) & 0xFF));
-        buf.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
-    }
-
-    static void write_double(std::vector<uint8_t>& buf, const double val) {
-        const auto bytes = reinterpret_cast<const uint8_t*>(&val);
-        for (size_t i = 0; i < sizeof(double); ++i) {
-            buf.push_back(bytes[i]);
-        }
-    }
-
-    static void write_to_file(std::ofstream& file, const uint32_t val) {
-        file.write(reinterpret_cast<const char*>(&val), sizeof(val));
-    }
+    static void write_i32(std::vector<uint8_t>& buf, int32_t val);
+    static void write_u32(std::vector<uint8_t>& buf, uint32_t val);
+    static void write_double(std::vector<uint8_t>& buf, double val);
+    static void write_to_file(std::ofstream& file, uint32_t val);
 };
 
 #endif //DROPLET_DBC_HELPER_H
