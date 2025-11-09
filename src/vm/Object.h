@@ -55,6 +55,8 @@ struct ObjString final : Object {
     }
 
     void markChildren(const MarkerFunction fn) override {
+        // to shut up compiler
+        // warning: unused parameter fn...
         (void) fn;
     }
 };

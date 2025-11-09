@@ -34,11 +34,29 @@ struct GC {
     std::vector<Object*> heap;
     size_t memThresholdForNextGcCall = MEM_THRESHOLD_FOR_NEXT_GC_CALL;
 
+    // Simply push the given object into the HEAP, no rocket science here
     void allocNewObject(Object *obj);
+
+    // Goes through the list of children(rootwalker function) and mark that value
+    // Root walker basically does:
+    //  a. Go through the object in Stack and Globals
+    //  b. Mark those object and their children recursively (as they are reachable)
     void markAll(const RWComplexGCFunction &rootWalker);
+
+    // If the given value is an Object, do:
+    // a. get the associated object of this value
+    // b. if the object is not null and is not marked,
+    //    mark this object and recursively mark all the children of this object
     void markValue(Value value);
+
+    // loop through the heap, delete the unmarked object
+    // set the marked object to unmarked and add to new Heap which replaces old heap
     void sweep();
+
+    // only collect if collection threshold is reached, calls the collect method
     void collectIfNeeded(const RWComplexGCFunction &rootWalker);
+
+    // run a markAll and sweep once
     void collect(const RWComplexGCFunction &rootWalker);
 };
 
