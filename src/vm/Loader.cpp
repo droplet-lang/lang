@@ -196,8 +196,5 @@ bool Loader::load_dbc_file(const std::string &path, VM &vm) {
 
     // for now we store global constants (strings) as globalConstants
     for (auto &c: constPool) vm.global_constants.push_back(c);
-
-    std::cerr << "Loaded module '" << path << "' functions=" << fnCount << " constants=" << constCount << " code=" <<
-            codeSize << "\n";
     return true;
 }
