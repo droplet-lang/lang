@@ -39,6 +39,7 @@ struct Type {
     std::vector<std::shared_ptr<Type>> typeParams;  // For LIST, DICT, generics
     std::vector<std::shared_ptr<Type>> paramTypes;  // For FUNCTION types
     std::shared_ptr<Type> returnType;  // For FUNCTION types
+    FieldDecl::Visibility visibility;
 
     Type(Kind k) : kind(k) {}
     Type(Kind k, std::string cls) : kind(k), className(std::move(cls)) {}
@@ -254,6 +255,9 @@ private:
     std::shared_ptr<Type> checkAssign(const AssignExpr* expr);
     std::shared_ptr<Type> checkCompoundAssign(const CompoundAssignExpr* expr);
     std::shared_ptr<Type> checkCall(const CallExpr* expr);
+
+    static bool isDescendant(const std::string &childName, const std::string &potentialAncestor, const std::unordered_map<std::string, ClassInfo> &classes);
+
     std::shared_ptr<Type> checkFieldAccess(const FieldAccessExpr* expr);
     std::shared_ptr<Type> checkIndex(const IndexExpr* expr);
     std::shared_ptr<Type> checkNew(const NewExpr* expr);

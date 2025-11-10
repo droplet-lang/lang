@@ -16,6 +16,7 @@
 #include "TypeChecker.h"
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
 
 void TypeChecker::registerFFIFunctions(const std::vector<std::unique_ptr<FunctionDecl>>& funcs) {
     for (auto& f : funcs) {
@@ -323,6 +324,7 @@ void TypeChecker::analyzeClass(const ClassDecl* classDecl) {
 
         auto fieldType = resolveTypeWithGenerics(field.type, classDecl->typeParams);
         info.fields[field.name] = fieldType;
+        info.fields[field.name]->visibility = field.visibility;
     }
 
     // Collect methods
@@ -859,6 +861,10 @@ std::shared_ptr<Type> TypeChecker::checkCompoundAssign(const CompoundAssignExpr*
 std::shared_ptr<Type> TypeChecker::checkFieldAccess(const FieldAccessExpr* expr) {
     auto objectType = checkExpr(expr->object.get());
 
+    // this will also respect the access modifier of field
+    // pub -> everywhere
+    // prot -> same class + inh class
+    // priv -> only same class
     if (objectType->kind == Type::Kind::OBJECT) {
         // Start searching from the object's class
         std::string currentClass = objectType->className;
@@ -873,18 +879,41 @@ std::shared_ptr<Type> TypeChecker::checkFieldAccess(const FieldAccessExpr* expr)
             // Check fields in current class
             auto fieldIt = it->second.fields.find(expr->field);
             if (fieldIt != it->second.fields.end()) {
+                // check visibility and throw from here?
+                if (fieldIt->second->visibility == FieldDecl::Visibility::PRIVATE && currentClassName != currentClass) {
+                    // only this class
+                    error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                }
+                else if (fieldIt->second->visibility == FieldDecl::Visibility::PROTECTED) {
+                    // this and children
+                    if (!isDescendant(currentClassName, currentClass, classes)) {
+                        error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                    }
+                }
+
                 return fieldIt->second;
             }
 
             // Check methods in current class
             auto methodIt = it->second.methods.find(expr->field);
             if (methodIt != it->second.methods.end()) {
+                // check visibility and throw from here?
+                if (methodIt->second->visibility == FunctionDecl::Visibility::PRIVATE && currentClassName != currentClass) {
+                    // only this class
+                    error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                }
+                else if (methodIt->second->visibility == FunctionDecl::Visibility::PROTECTED) {
+                    // this and children
+                    if (!isDescendant(currentClassName, currentClass, classes)) {
+                        error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                    }
+                }
+
                 // Return function type for method reference
                 auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
                 return funcType;
             }
 
-            // Move up to parent class
             currentClass = it->second.parentClass;
         }
 
@@ -974,6 +1003,24 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
                         if (!isAssignable(paramType, argType)) {
                             error("Argument " + std::to_string(i + 1) + " type mismatch: expected " + paramTypeStr + ", got " + argType->toString());
                             return Type::Unknown();
+                        }
+                    }
+
+                    FunctionDecl::Visibility visibility = method->visibility;
+
+                    if (visibility == FunctionDecl::Visibility::PRIVATE) {
+                        // can be called from method of same class
+                        if (currentClassName != currentClass) {
+                            error("Private method can only be called from inside its own class.");
+                            return Type::Unknown();
+                        }
+                    }
+                    if (visibility == FunctionDecl::Visibility::PROTECTED) {
+                        // can be called from the method of class which is inh of this class
+                        if (currentClassName != currentClass) {
+                            if (!isDescendant(currentClassName, currentClass, classes)) {
+                                error("Protected method can only be called from its own child class or itself.");
+                                return Type::Unknown();                            }
                         }
                     }
 
@@ -1068,6 +1115,30 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
 
     // --- Fallback ---
     return Type::Unknown();
+}
+
+bool TypeChecker::isDescendant(const std::string& childName, const std::string& potentialAncestor, const std::unordered_map<std::string, ClassInfo>& classes) {
+    std::string current = childName;
+    std::unordered_set<std::string> visited;
+
+    while (true) {
+        // Detect circular inheritance
+        if (visited.contains(current)) {
+            std::cerr << "[Warning] Circular inheritance detected at class: " << current << "\n";
+            return false;
+        }
+
+        visited.insert(current);
+
+        auto it = classes.find(current);
+        if (it == classes.end()) return false;          // class not found
+        const std::string& parent = it->second.parentClass;
+        if (parent.empty()) return false;               // no parent, stop
+        if (parent == potentialAncestor) return true;   // found ancestor
+        current = parent;                               // move up the chain
+    }
+
+    return false;
 }
 
 std::shared_ptr<Type> TypeChecker::checkIndex(const IndexExpr* expr) {

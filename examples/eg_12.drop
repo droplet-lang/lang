@@ -1,0 +1,22 @@
+mod logger.printer
+
+class HelloWorld {
+    pub x: int = 100
+    priv y: int = 100
+    prot z: int = 100
+    prot zz: int = 100
+
+}
+
+class HiWorld: HelloWorld {
+    fn t() {
+        println(self.x) // work
+        println(self.y) // work
+        println(self.z) // not work
+    }
+}
+
+fn main() {
+    let m = HiWorld()
+    m.t()
+}

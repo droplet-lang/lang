@@ -800,11 +800,6 @@ void CodeGenerator::generateMethod(FunctionDecl* method, const std::string& clas
     // Register FIRST
     functionIndices[methodName] = methodIdx;
 
-    std::cerr << "DEBUG: Generating method '" << methodName
-              << "' at index " << methodIdx
-              << " with " << method->params.size() << " params"
-              << " (static=" << method->isStatic << ")\n";
-
     // Then add the function
     auto& fb = builder.addFunction(methodName);
 
