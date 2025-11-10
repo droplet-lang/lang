@@ -16,6 +16,7 @@
 #include "TypeChecker.h"
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
 
 void TypeChecker::registerFFIFunctions(const std::vector<std::unique_ptr<FunctionDecl>>& funcs) {
     for (auto& f : funcs) {
@@ -977,6 +978,24 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
                         }
                     }
 
+                    FunctionDecl::Visibility visibility = method->visibility;
+
+                    if (visibility == FunctionDecl::Visibility::PRIVATE) {
+                        // can be called from method of same class
+                        if (currentClassName != currentClass) {
+                            error("Private method can only be called from inside its own class.");
+                            return Type::Unknown();
+                        }
+                    }
+                    if (visibility == FunctionDecl::Visibility::PROTECTED) {
+                        // can be called from the method of class which is inh of this class
+                        if (currentClassName != currentClass) {
+                            if (!isDescendant(currentClassName, currentClass, classes)) {
+                                error("Protected method can only be called from its own child class or itself.");
+                                return Type::Unknown();                            }
+                        }
+                    }
+
                     return method->returnType.empty()
                         ? Type::Void()
                         : resolveType(method->returnType);
@@ -1068,6 +1087,30 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
 
     // --- Fallback ---
     return Type::Unknown();
+}
+
+bool TypeChecker::isDescendant(const std::string& childName, const std::string& potentialAncestor, const std::unordered_map<std::string, ClassInfo>& classes) {
+    std::string current = childName;
+    std::unordered_set<std::string> visited;
+
+    while (true) {
+        // Detect circular inheritance
+        if (visited.contains(current)) {
+            std::cerr << "[Warning] Circular inheritance detected at class: " << current << "\n";
+            return false;
+        }
+
+        visited.insert(current);
+
+        auto it = classes.find(current);
+        if (it == classes.end()) return false;          // class not found
+        const std::string& parent = it->second.parentClass;
+        if (parent.empty()) return false;               // no parent, stop
+        if (parent == potentialAncestor) return true;   // found ancestor
+        current = parent;                               // move up the chain
+    }
+
+    return false;
 }
 
 std::shared_ptr<Type> TypeChecker::checkIndex(const IndexExpr* expr) {

@@ -1,0 +1,22 @@
+mod logger.printer
+
+class HelloWorld {
+    // should be available in inheritence
+    prot fn protected() {
+        print("I am protected")
+    }
+}
+
+class HiWorld: HelloWorld {
+
+    fn h() {
+        // should work
+        self.protected()
+        print("Inside h")
+    }
+}
+
+fn main() {
+    let m = HiWorld()
+    m.protected()
+}
