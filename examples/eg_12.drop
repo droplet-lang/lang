@@ -1,22 +1,22 @@
 mod logger.printer
 
 class HelloWorld {
-    // should be available in inheritence
-    prot fn protected() {
-        print("I am protected")
-    }
+    pub x: int = 100
+    priv y: int = 100
+    prot z: int = 100
+    prot zz: int = 100
+
 }
 
 class HiWorld: HelloWorld {
-
-    fn h() {
-        // should work
-        self.protected()
-        print("Inside h")
+    fn t() {
+        println(self.x) // work
+        println(self.y) // work
+        println(self.z) // not work
     }
 }
 
 fn main() {
     let m = HiWorld()
-    m.protected()
+    m.t()
 }

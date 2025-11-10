@@ -324,6 +324,7 @@ void TypeChecker::analyzeClass(const ClassDecl* classDecl) {
 
         auto fieldType = resolveTypeWithGenerics(field.type, classDecl->typeParams);
         info.fields[field.name] = fieldType;
+        info.fields[field.name]->visibility = field.visibility;
     }
 
     // Collect methods
@@ -860,6 +861,10 @@ std::shared_ptr<Type> TypeChecker::checkCompoundAssign(const CompoundAssignExpr*
 std::shared_ptr<Type> TypeChecker::checkFieldAccess(const FieldAccessExpr* expr) {
     auto objectType = checkExpr(expr->object.get());
 
+    // this will also respect the access modifier of field
+    // pub -> everywhere
+    // prot -> same class + inh class
+    // priv -> only same class
     if (objectType->kind == Type::Kind::OBJECT) {
         // Start searching from the object's class
         std::string currentClass = objectType->className;
@@ -874,18 +879,41 @@ std::shared_ptr<Type> TypeChecker::checkFieldAccess(const FieldAccessExpr* expr)
             // Check fields in current class
             auto fieldIt = it->second.fields.find(expr->field);
             if (fieldIt != it->second.fields.end()) {
+                // check visibility and throw from here?
+                if (fieldIt->second->visibility == FieldDecl::Visibility::PRIVATE && currentClassName != currentClass) {
+                    // only this class
+                    error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                }
+                else if (fieldIt->second->visibility == FieldDecl::Visibility::PROTECTED) {
+                    // this and children
+                    if (!isDescendant(currentClassName, currentClass, classes)) {
+                        error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                    }
+                }
+
                 return fieldIt->second;
             }
 
             // Check methods in current class
             auto methodIt = it->second.methods.find(expr->field);
             if (methodIt != it->second.methods.end()) {
+                // check visibility and throw from here?
+                if (methodIt->second->visibility == FunctionDecl::Visibility::PRIVATE && currentClassName != currentClass) {
+                    // only this class
+                    error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                }
+                else if (methodIt->second->visibility == FunctionDecl::Visibility::PROTECTED) {
+                    // this and children
+                    if (!isDescendant(currentClassName, currentClass, classes)) {
+                        error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
+                    }
+                }
+
                 // Return function type for method reference
                 auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
                 return funcType;
             }
 
-            // Move up to parent class
             currentClass = it->second.parentClass;
         }
 

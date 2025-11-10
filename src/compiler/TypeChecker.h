@@ -39,6 +39,7 @@ struct Type {
     std::vector<std::shared_ptr<Type>> typeParams;  // For LIST, DICT, generics
     std::vector<std::shared_ptr<Type>> paramTypes;  // For FUNCTION types
     std::shared_ptr<Type> returnType;  // For FUNCTION types
+    FieldDecl::Visibility visibility;
 
     Type(Kind k) : kind(k) {}
     Type(Kind k, std::string cls) : kind(k), className(std::move(cls)) {}
