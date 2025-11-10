@@ -1,0 +1,12 @@
+class Logger {
+    new() {}
+
+    fn debug(tag: string, message: string) {
+        println(message)
+    }
+}
+
+fn main() {
+    let logg = Logger()
+    logg.debug("Hello", "World")
+}

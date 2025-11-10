@@ -927,8 +927,7 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
                         auto argType = checkExpr(expr->arguments[i].get());
                         auto paramType = resolveType(method->params[i].type);
                         if (!isAssignable(paramType, argType)) {
-                            error("Argument " + std::to_string(i + 1) + " type mismatch: expected " +
-                                  paramType->toString() + ", got " + argType->toString());
+                            error("Argument " + std::to_string(i + 1) + " type mismatch: expected " + paramType->toString() + ", got " + argType->toString());
                             return Type::Unknown();
                         }
                     }
@@ -947,6 +946,7 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
         auto objectType = checkExpr(fieldAccess->object.get());
         if (objectType->kind == Type::Kind::OBJECT) {
             std::string currentClass = objectType->className;
+            std::cout<<currentClass<<std::endl;
 
             while (!currentClass.empty()) {
                 auto it = classes.find(currentClass);
@@ -964,11 +964,15 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
                     }
 
                     for (size_t i = 0; i < expr->arguments.size(); ++i) {
+                        // args are passed value
                         auto argType = checkExpr(expr->arguments[i].get());
-                        auto paramType = resolveType(method->params[i].type);
+
+                        // params are asked vars
+                        const auto paramTypeStr = method->params[i].type;
+                        auto paramType = resolveType(paramTypeStr);
+
                         if (!isAssignable(paramType, argType)) {
-                            error("Argument " + std::to_string(i + 1) + " type mismatch: expected " +
-                                  paramType->toString() + ", got " + argType->toString());
+                            error("Argument " + std::to_string(i + 1) + " type mismatch: expected " + paramTypeStr + ", got " + argType->toString());
                             return Type::Unknown();
                         }
                     }
