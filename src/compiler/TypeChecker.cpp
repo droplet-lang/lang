@@ -243,6 +243,14 @@ void TypeChecker::registerBuiltins() const {
         Symbol symbol(Symbol::Kind::FUNCTION, "float", funcType);
         globalScope->define(symbol);
     }
+
+    // input(...) -> str
+    {
+        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
+        funcType->returnType = Type::String();
+        Symbol symbol(Symbol::Kind::FUNCTION, "input", funcType);
+        globalScope->define(symbol);
+    }
 }
 
 void TypeChecker::check(const Program& program) {
@@ -1049,8 +1057,16 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
             return Type::Object(id->name);
         }
 
-        // (b) BUILT-IN FUNCTIONS (print, println)
-        if (id->name == "print" || id->name == "println") {
+        // (b) BUILT-IN FUNCTIONS
+        if (
+            id->name == "print" ||
+            id->name == "println" ||
+            id->name == "str" ||
+            id->name == "len" ||
+            id->name == "int" ||
+            id->name == "float" ||
+            id->name == "input"
+            ) {
             for (auto& arg : expr->arguments) checkExpr(arg.get());
             return Type::Void();
         }

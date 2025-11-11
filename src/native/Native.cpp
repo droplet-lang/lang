@@ -18,21 +18,18 @@
 
 #include "../vm/VM.h"
 
+// Native print function
 void native_print(VM& vm, const uint8_t argc) {
     for (int i = argc - 1; i >= 0; i--) {
         Value v = vm.stack_manager.peek(i);
         std::cout << v.toString();
         if (i > 0) std::cout << " ";
     }
-
-    for (int i = 0; i < argc; i++) {
-        vm.stack_manager.pop();
-    }
-
+    for (int i = 0; i < argc; i++) vm.stack_manager.pop();
     vm.stack_manager.push(Value::createNIL());
 }
 
-// Native println function (with newline)
+// Native println function
 void native_println(VM& vm, const uint8_t argc) {
     for (int i = argc - 1; i >= 0; i--) {
         Value v = vm.stack_manager.peek(i);
@@ -40,11 +37,7 @@ void native_println(VM& vm, const uint8_t argc) {
         if (i > 0) std::cout << " ";
     }
     std::cout << std::endl;
-
-    for (int i = 0; i < argc; i++) {
-        vm.stack_manager.pop();
-    }
-
+    for (int i = 0; i < argc; i++) vm.stack_manager.pop();
     vm.stack_manager.push(Value::createNIL());
 }
 
@@ -55,7 +48,6 @@ void native_str(VM& vm, const uint8_t argc) {
         vm.stack_manager.push(Value::createNIL());
         return;
     }
-
     Value v = vm.stack_manager.pop();
     ObjString* str = vm.allocator.allocate_string(v.toString());
     vm.stack_manager.push(Value::createOBJECT(str));
@@ -71,18 +63,70 @@ void native_len(VM& vm, const uint8_t argc) {
 
     const Value v = vm.stack_manager.pop();
     if (v.type == ValueType::OBJECT && v.current_value.object) {
-        if (const auto* arr = dynamic_cast<ObjArray*>(v.current_value.object)) {
+        if (auto* arr = dynamic_cast<ObjArray*>(v.current_value.object)) {
             vm.stack_manager.push(Value::createINT(static_cast<int64_t>(arr->value.size())));
             return;
         }
-        if (const auto* map = dynamic_cast<ObjMap*>(v.current_value.object)) {
+        if (auto* map = dynamic_cast<ObjMap*>(v.current_value.object)) {
             vm.stack_manager.push(Value::createINT(static_cast<int64_t>(map->value.size())));
             return;
         }
-        if (const auto* str = dynamic_cast<ObjString*>(v.current_value.object)) {
+        if (auto* str = dynamic_cast<ObjString*>(v.current_value.object)) {
             vm.stack_manager.push(Value::createINT(static_cast<int64_t>(str->value.size())));
             return;
         }
     }
     vm.stack_manager.push(Value::createINT(0));
+}
+
+// Native int function
+void native_int(VM& vm, const uint8_t argc) {
+    if (argc != 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        vm.stack_manager.push(Value::createINT(0));
+        return;
+    }
+
+    Value v = vm.stack_manager.pop();
+    try {
+        int64_t result = std::stoll(v.toString());
+        vm.stack_manager.push(Value::createINT(result));
+    } catch (...) {
+        vm.stack_manager.push(Value::createINT(0));
+    }
+}
+
+// Native float function
+void native_float(VM& vm, const uint8_t argc) {
+    if (argc != 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        vm.stack_manager.push(Value::createDOUBLE(0.0));
+        return;
+    }
+
+    Value v = vm.stack_manager.pop();
+    try {
+        double result = std::stod(v.toString());
+        vm.stack_manager.push(Value::createDOUBLE(result));
+    } catch (...) {
+        vm.stack_manager.push(Value::createDOUBLE(0.0));
+    }
+}
+
+// Native input function
+void native_input(VM& vm, const uint8_t argc) {
+    std::string line;
+
+    if (argc == 1) {
+        Value prompt = vm.stack_manager.pop();
+        std::cout << prompt.toString();
+    } else if (argc > 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        vm.stack_manager.push(Value::createNIL());
+        return;
+    }
+
+    std::getline(std::cin, line);
+    ObjString* str = vm.allocator.allocate_string(line);
+    vm.stack_manager.push(Value::createOBJECT(str));
 }
