@@ -11,12 +11,21 @@ class HelloWorld {
 class HiWorld: HelloWorld {
     fn t() {
         println(self.x) // work
-        println(self.y) // work
-        println(self.z) // not work
+    }
+}
+
+class To {
+    fn mo() {
+        println("Moo")
     }
 }
 
 fn main() {
     let m = HiWorld()
-    m.t()
+    let t = m as HelloWorld // ok
+
+    // m should only be translated to To if
+    // its a To
+    let t2 = m as To // not ok, should error
+    t2.mo() // should fail
 }
