@@ -13,26 +13,30 @@
  * ============================================================
  */
 #include "CodeGenerator.h"
+
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 
 
 bool CodeGenerator::generate(const Program& program, const std::string& outputPath) {
-    // Phase 1: Generate all class constructors and methods
+    // Phase 2: Generate all class constructors and methods
     // This also registers their indices
     for (auto& classDecl : program.classes) {
         generateClass(classDecl.get());
     }
 
-    // Phase 2: Generate top-level functions
+    // Phase 3: Generate top-level functions
     for (auto& func : program.functions) {
-        generateFunction(func.get(), func->name);
-    }
 
-    // Phase 3: Generate FFI declarations as simple names
-    for (auto& ffiDecl : program.ffiDecls) {
-        const uint32_t nameIdx = addStringConstant(ffiDecl->dropletName);
-        functionIndices[ffiDecl->dropletName] = nameIdx;
+        if (func->ffi.has_value()) {
+            // this is ffi function
+            const uint32_t nameIdx = addStringConstant(func->name);
+            functionIndices[func->name] = nameIdx;
+            registerFFI(func->name, &func->ffi.value());
+        }
+
+        generateFunction(func.get(), func->name);
     }
 
     // Phase 4: write everything to the dbc file
@@ -54,13 +58,13 @@ bool CodeGenerator::generateWithModules(const Program& mainProgram, const std::s
 
             // Generate functions
             for (auto& func : module->ast->functions) {
+                if (func->ffi.has_value()) {
+                    // this is ffi function
+                    const uint32_t nameIdx = addStringConstant(func->name);
+                    functionIndices[func->name] = nameIdx;
+                    registerFFI(func->name, &func->ffi.value());
+                }
                 generateFunction(func.get(), func->name);
-            }
-
-            // Generate FFI declarations
-            for (const auto& ffiDecl : module->ast->ffiDecls) {
-                const uint32_t nameIdx = addStringConstant(ffiDecl->dropletName);
-                functionIndices[ffiDecl->dropletName] = nameIdx;
             }
         }
     }
@@ -736,6 +740,29 @@ void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb
     else if (auto id = dynamic_cast<IdentifierExpr*>(expr->callee.get())) {
         // Function call or constructor call
 
+        // Check if it's an FFI call FIRST
+        const auto ffiIt = ffiRegistry.find(id->name);
+        if (ffiIt != ffiRegistry.end()) {
+            const FFIInfo* ffiDecl = ffiIt->second;
+
+            // Push arguments onto stack
+            for (auto& arg : expr->arguments) {
+                generateExpr(arg.get(), fb);
+            }
+
+            const auto argc = static_cast<uint8_t>(expr->arguments.size());
+
+            // Add library path, symbol name, and signature to constants
+            const uint32_t libIdx = addStringConstant(ffiDecl->libPath);
+            const uint32_t symIdx = addStringConstant(id->name);
+            const uint32_t sigIdx = addStringConstant(ffiDecl->sig);
+
+            fb.callFFI(libIdx, symIdx, argc, sigIdx);
+            return;
+        }
+
+
+
         // Check for built-in functions
         if (isBuiltinFunction(id->name)) {
             // Push arguments
@@ -782,6 +809,7 @@ void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb
             }
 
             uint8_t argc = static_cast<uint8_t>(expr->arguments.size());
+
             fb.call(it->second, argc);
             return;
         }
@@ -893,7 +921,8 @@ void CodeGenerator::generateFunctionBody(FunctionDecl* func, DBCBuilder::Functio
     if (func->returnType.empty() || func->returnType == "void") {
         fb.pushConst(builder.addConstNil());  // Push nil for void functions
         fb.ret(1);  // Return 1 value (the nil)
-    } else {
+    }
+    else {
         // If no explicit return, return nil
         fb.pushConst(builder.addConstNil());
         fb.ret(1);
@@ -910,8 +939,7 @@ void CodeGenerator::debugPrintIndices() {
     std::cerr << "========================\n\n";
 }
 
-void CodeGenerator::generateFieldAccess(FieldAccessExpr* expr,
-                                         DBCBuilder::FunctionBuilder& fb) {
+void CodeGenerator::generateFieldAccess(FieldAccessExpr* expr, DBCBuilder::FunctionBuilder& fb) {
     generateExpr(expr->object.get(), fb);
     uint32_t fieldIdx = addStringConstant(expr->field);
     fb.getField(fieldIdx);

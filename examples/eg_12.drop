@@ -1,31 +1,18 @@
 mod logger.printer
 
-class HelloWorld {
-    pub x: int = 100
-    priv y: int = 100
-    prot z: int = 100
-    prot zz: int = 100
+class H1 {
+    x: int = 10
 
-}
+    new() {}
 
-class HiWorld: HelloWorld {
-    fn t() {
-        println(self.x) // work
+    pub fn sum() -> int {
+        return self.x + self.x
     }
 }
 
-class To {
-    fn mo() {
-        println("Moo")
-    }
-}
 
 fn main() {
-    let m = HiWorld()
-    let t = m as HelloWorld // ok
-
-    // m should only be translated to To if
-    // its a To
-    let t2 = m as To // not ok, should error
-    t2.mo() // should fail
+    let h = H1()
+    let y = h.sum()
+    println(y)
 }

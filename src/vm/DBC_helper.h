@@ -66,7 +66,7 @@ public:
         FunctionBuilder& arraySet();
         FunctionBuilder& mapGet();
         FunctionBuilder& mapSet();
-        FunctionBuilder& callFFI(uint32_t libIdx, uint32_t symIdx, uint8_t argc, uint8_t sig);
+        FunctionBuilder& callFFI(uint32_t libIdx, uint32_t symIdx, uint8_t argc, uint32_t sigIdx);
         FunctionBuilder& isInstance(uint32_t typeNameIdx);
 
         // Get current code position (useful for jump targets)

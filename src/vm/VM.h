@@ -22,7 +22,7 @@
 #include "Allocator.h"
 #include "CallFrame.h"
 #include "defines.h"
-#include "FFI.h"
+#include "FFIHelper.h"
 #include "StackManager.h"
 #include "Value.h"
 
@@ -32,7 +32,7 @@ struct VM {
     }
 
     StackManager stack_manager;
-    FFI ffi;
+    FFIHelper ffi;
     Allocator allocator;
 
     // Native registry

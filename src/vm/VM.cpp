@@ -19,7 +19,6 @@
 #include <iostream>
 
 
-
 void VM::do_return(const uint8_t return_count) {
     if (call_frames.empty()) return;
 
@@ -48,7 +47,6 @@ void VM::do_return(const uint8_t return_count) {
     for (int i = static_cast<int>(rets.size()) - 1; i >= 0; i--) {
         stack_manager.push(rets[i]);
     }
-
 }
 
 uint32_t VM::get_function_index(const std::string &name) {
@@ -351,10 +349,12 @@ void VM::run() {
                 uint32_t libIdx = frame.read_u32();
                 uint32_t symIdx = frame.read_u32();
                 uint8_t argc = frame.read_u8();
-                uint8_t sig = frame.read_u8();
+                uint32_t sigIdx = frame.read_u32();
 
-                if (libIdx >= global_constants.size() || symIdx >= global_constants.size()) {
-                    std::cerr << "CALL_FFI: bad idx\n";
+                if (libIdx >= global_constants.size() ||
+                    symIdx >= global_constants.size() ||
+                    sigIdx >= global_constants.size()) {
+                    std::cerr << "CALL_FFI: Invalid constant indices\n";
                     for (int i = 0; i < argc; i++)
                         stack_manager.pop();
                     stack_manager.push(Value::createNIL());
@@ -363,9 +363,10 @@ void VM::run() {
 
                 auto *libNameObj = dynamic_cast<ObjString *>(global_constants[libIdx].current_value.object);
                 auto *symNameObj = dynamic_cast<ObjString *>(global_constants[symIdx].current_value.object);
+                auto* sigObj = dynamic_cast<ObjString*>(global_constants[sigIdx].current_value.object);
 
-                if (!libNameObj || !symNameObj) {
-                    std::cerr << "CALL_FFI: name types\n";
+                if (!libNameObj || !symNameObj || !sigObj) {
+                    std::cerr << "CALL_FFI: Invalid string objects\n";
                     for (int i = 0; i < argc; i++)
                         stack_manager.pop();
                     stack_manager.push(Value::createNIL());
@@ -380,7 +381,7 @@ void VM::run() {
                     break;
                 }
 
-                void *sym = ffi.find_symbol(h, symNameObj->value);
+                void *sym = FFIHelper::find_symbol(h, symNameObj->value);
                 if (!sym) {
                     std::cerr << "CALL_FFI: symbol missing\n";
                     for (int i = 0; i < argc; i++)
@@ -389,70 +390,14 @@ void VM::run() {
                     break;
                 }
 
-                // Actually call the FFI function!
-                // This is a simplified version - proper implementation needs libffi
-                // For now, we support simple signatures based on 'sig' parameter
-
                 std::vector<Value> args;
+                args.reserve(argc);
                 for (int i = 0; i < argc; i++) {
                     args.insert(args.begin(), stack_manager.pop());
                 }
 
-                // Signature encoding:
-                // 0 = int32(int32, int32)
-                // 1 = int32(int32)
-                // 2 = double(double, double)
-                // etc.
-
-                if (sig == 0 && argc == 2) {
-                    // int32_t func(int32_t, int32_t)
-                    typedef int32_t (*FFIFunc2Int)(int32_t, int32_t);
-                    auto func = reinterpret_cast<FFIFunc2Int>(sym);
-
-                    int32_t arg0 = (args[0].type == ValueType::INT)
-                                       ? static_cast<int32_t>(args[0].current_value.i)
-                                       : 0;
-                    int32_t arg1 = (args[1].type == ValueType::INT)
-                                       ? static_cast<int32_t>(args[1].current_value.i)
-                                       : 0;
-
-                    int32_t result = func(arg0, arg1);
-                    stack_manager.push(Value::createINT(result));
-                } else if (sig == 1 && argc == 1) {
-                    // int32_t func(int32_t)
-                    typedef int32_t (*FFIFunc1Int)(int32_t);
-                    auto func = reinterpret_cast<FFIFunc1Int>(sym);
-
-                    int32_t arg0 = (args[0].type == ValueType::INT)
-                                       ? static_cast<int32_t>(args[0].current_value.i)
-                                       : 0;
-
-                    int32_t result = func(arg0);
-                    stack_manager.push(Value::createINT(result));
-                } else if (sig == 2 && argc == 2) {
-                    // double func(double, double)
-                    typedef double (*FFIFunc2Double)(double, double);
-                    auto func = reinterpret_cast<FFIFunc2Double>(sym);
-
-                    double arg0 = (args[0].type == ValueType::DOUBLE)
-                                      ? args[0].current_value.d
-                                      : (args[0].type == ValueType::INT
-                                             ? static_cast<double>(args[0].current_value.i)
-                                             : 0.0);
-                    double arg1 = (args[1].type == ValueType::DOUBLE)
-                                      ? args[1].current_value.d
-                                      : (args[1].type == ValueType::INT
-                                             ? static_cast<double>(args[1].current_value.i)
-                                             : 0.0);
-
-                    double result = func(arg0, arg1);
-                    stack_manager.push(Value::createDOUBLE(result));
-                } else {
-                    std::cerr << "CALL_FFI: unsupported signature "
-                            << static_cast<int>(sig) << "\n";
-                    stack_manager.push(Value::createNIL());
-                }
-
+                Value ffi_response = FFIHelper::do_ffi_call(sigObj->value, args, this, sym);
+                stack_manager.push(ffi_response);
                 break;
             }
             case OP_NEW_OBJECT: {
@@ -476,7 +421,7 @@ void VM::run() {
                     break;
                 }
 
-                auto* typeName = dynamic_cast<ObjString*>(global_constants[typeIdx].current_value.object);
+                auto *typeName = dynamic_cast<ObjString *>(global_constants[typeIdx].current_value.object);
                 if (!typeName) {
                     stack_manager.push(Value::createBOOL(false));
                     break;
@@ -487,7 +432,7 @@ void VM::run() {
                     break;
                 }
 
-                auto* instance = dynamic_cast<ObjInstance*>(objVal.current_value.object);
+                auto *instance = dynamic_cast<ObjInstance *>(objVal.current_value.object);
                 if (!instance) {
                     stack_manager.push(Value::createBOOL(false));
                     break;
@@ -718,7 +663,7 @@ void VM::run() {
                 ObjArray *arr = allocator.allocate_array();
                 stack_manager.push(Value::createOBJECT(arr));
                 break;
-}
+            }
             case OP_NEW_MAP: {
                 ObjMap *map = allocator.allocate_map();
                 stack_manager.push(Value::createOBJECT(map));
