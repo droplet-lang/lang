@@ -3,6 +3,9 @@ project(droplet)
 
 set(CMAKE_CXX_STANDARD 20)
 
+include_directories("D:/msys64/mingw64/include")
+link_directories("D:/msys64/mingw64/lib")
+
 add_executable(droplet main.cpp
         src/vm/VM.cpp
         src/vm/VM.h
@@ -18,8 +21,8 @@ add_executable(droplet main.cpp
         src/tests/Value_obj_test.h
         src/vm/DBC_helper.cpp
         src/vm/DBC_helper.h
-        src/vm/FFI.cpp
-        src/vm/FFI.h
+        src/vm/FFIHelper.cpp
+        src/vm/FFIHelper.h
         src/vm/StackManager.cpp
         src/vm/StackManager.h
         src/vm/CallFrame.cpp
@@ -47,3 +50,5 @@ add_executable(droplet main.cpp
         src/native/Native.cpp
         src/native/Native.h
 )
+
+target_link_libraries(droplet PRIVATE ffi)

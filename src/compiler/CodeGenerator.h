@@ -97,6 +97,11 @@ private:
     FunctionContext* currentFunction = nullptr;
     std::vector<LoopContext> loopStack;
     ModuleLoader* moduleLoader = nullptr;
+    std::unordered_map<std::string, FFIInfo*> ffiRegistry;
+
+    void registerFFI(const std::string& name, FFIInfo* decl) {
+        ffiRegistry[name] = decl;
+    }
 
     // Constant management
     uint32_t addStringConstant(const std::string& str);

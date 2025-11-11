@@ -6,7 +6,6 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
-
 #include "src/native/Native.h"
 #include "src/vm/Loader.h"
 

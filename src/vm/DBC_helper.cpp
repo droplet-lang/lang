@@ -303,12 +303,12 @@ DBCBuilder::FunctionBuilder& DBCBuilder::FunctionBuilder::mapSet() {
     return emit(OP_MAP_SET);
 }
 
-DBCBuilder::FunctionBuilder& DBCBuilder::FunctionBuilder::callFFI(const uint32_t libIdx, const uint32_t symIdx, const uint8_t argc, const uint8_t sig) {
+DBCBuilder::FunctionBuilder& DBCBuilder::FunctionBuilder::callFFI(const uint32_t libIdx, const uint32_t symIdx, const uint8_t argc, const uint32_t sigIdx) {
     return emit(OP_CALL_FFI)
         .emitU32(libIdx)
         .emitU32(symIdx)
         .emitU8(argc)
-        .emitU8(sig);
+        .emitU32(sigIdx);
 }
 
 DBCBuilder::FunctionBuilder& DBCBuilder::FunctionBuilder::isInstance(uint32_t typeNameIdx) {
