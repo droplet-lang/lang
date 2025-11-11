@@ -463,7 +463,7 @@ std::shared_ptr<Type> TypeChecker::resolveTypeWithGenerics(const std::string& ty
     }
 
     // Check if it's a class type
-    if (classes.find(typeStr) != classes.end()) {
+    if (classes.contains(typeStr)) {
         return Type::Object(typeStr);
     }
 
@@ -1238,7 +1238,23 @@ std::shared_ptr<Type> TypeChecker::checkDict(const DictExpr* expr) {
 
 std::shared_ptr<Type> TypeChecker::checkCast(const CastExpr* expr) {
     checkExpr(expr->expr.get());
-    return resolveType(expr->targetType);
+    auto type = resolveType(expr->targetType);
+
+    if (expr->expr->type->className == expr->targetType) {
+        // converting same type to same type
+        return type;
+    }
+
+    // not same type
+    if (expr->expr->type->kind == Type::Kind::OBJECT) {
+        // in case of object, either same or parent
+        if (!isDescendant(expr->expr->type->className, expr->targetType, classes)) {
+            error("Can not type convert type " + expr->expr->type->className + " to type " + expr->targetType);
+        }
+    }
+
+
+    return type;
 }
 
 std::shared_ptr<Type> TypeChecker::checkIs(const IsExpr* expr) {
