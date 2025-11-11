@@ -1,0 +1,8 @@
+fn main() {
+    let h = input("Enter the area: ") as str
+    let h2 = input("Enter the area: ") as str
+    let hI = int(h) as int
+    let hIJ = int(h2) as int
+
+    println(hI + hIJ)
+}

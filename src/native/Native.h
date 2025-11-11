@@ -16,10 +16,13 @@
 #define DROPLET_NATIVE_H
 #include "../vm/VM.h"
 
-void native_len(VM& vm, const uint8_t argc);
-void native_print(VM& vm, const uint8_t argc);
-void native_println(VM& vm, const uint8_t argc);
-void native_str(VM& vm, const uint8_t argc);
+void native_len(VM& vm, uint8_t argc);
+void native_print(VM& vm, uint8_t argc);
+void native_println(VM& vm, uint8_t argc);
+void native_str(VM& vm, uint8_t argc);
+void native_input(VM& vm, uint8_t argc);
+void native_int(VM& vm, uint8_t argc);
+void native_float(VM& vm, uint8_t argc);
 
 // made inline just to shut up compiler warning, no special case
 inline void register_native_functions(VM& vm) {
@@ -27,6 +30,9 @@ inline void register_native_functions(VM& vm) {
     vm.register_native("println", native_println);
     vm.register_native("str", native_str);
     vm.register_native("len", native_len);
+    vm.register_native("input", native_input);
+    vm.register_native("int", native_int);
+    vm.register_native("float", native_float);
 }
 
 #endif //DROPLET_NATIVE_H
