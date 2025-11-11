@@ -93,27 +93,23 @@ Value FFIHelper::do_ffi_call(const std::string &sig, std::vector<Value> &args, V
                 intStorage[intIdx] = v.current_value.i;
                 argValues.push_back(&intStorage[intIdx]);
                 argTypes.push_back(&ffi_type_sint64);
-                std::cout << "[FFI] Arg " << i << " type: INT, value: " << v.current_value.i << "\n";
                 intIdx++;
                 break;
             case ValueType::DOUBLE:
                 doubleStorage[doubleIdx] = v.current_value.d;
                 argValues.push_back(&doubleStorage[doubleIdx]);
                 argTypes.push_back(&ffi_type_double);
-                std::cout << "[FFI] Arg " << i << " type: DOUBLE, value: " << v.current_value.d << "\n";
                 doubleIdx++;
                 break;
             case ValueType::BOOL:
                 intStorage[intIdx] = v.current_value.b ? 1 : 0;
                 argValues.push_back(&intStorage[intIdx]);
                 argTypes.push_back(&ffi_type_uint8);
-                std::cout << "[FFI] Arg " << i << " type: BOOL, value: " << v.current_value.b << "\n";
                 intIdx++;
                 break;
             default:
                 argValues.push_back(nullptr);
                 argTypes.push_back(&ffi_type_void);
-                std::cout << "[FFI] Arg " << i << " type: UNKNOWN, using nullptr\n";
                 break;
         }
     }
@@ -121,7 +117,6 @@ Value FFIHelper::do_ffi_call(const std::string &sig, std::vector<Value> &args, V
     ffi_cif cif;
     ffi_type* retType = get_ffi_type(s.returnType);
     if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argTypes.size(), retType, argTypes.data()) != FFI_OK) {
-        std::cerr << "[FFI] ffi_prep_cif failed\n";
         return Value::createNIL();
     }
 
