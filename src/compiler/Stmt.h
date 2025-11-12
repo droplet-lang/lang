@@ -107,14 +107,15 @@ struct FunctionDecl final : Stmt {
     bool isSealed;
     Visibility visibility;
     bool isOperator;  // true if this is an operator overload
+    bool mayReturnError;  // for type T! : meaning either T or er
     std::optional<FFIInfo> ffi;
 
     FunctionDecl(std::string n, std::vector<Parameter> p, std::string ret,
                  StmtPtr b, const bool stat = false, const bool seal = false,
-                 const Visibility vis = Visibility::PUBLIC, const bool isOp = false)
+                 const Visibility vis = Visibility::PUBLIC, const bool isOp = false, const bool mayReturnError = false)
         : name(std::move(n)), params(std::move(p)), returnType(std::move(ret)),
           body(std::move(b)), isStatic(stat), isSealed(seal),
-          visibility(vis), isOperator(isOp) {}
+          visibility(vis), isOperator(isOp), mayReturnError(mayReturnError) {}
 };
 
 struct FieldDecl {

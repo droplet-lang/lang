@@ -31,6 +31,9 @@ enum class TokenType {
     KW_AS, KW_IS, KW_MOD, KW_IMPORT, KW_USE, KW_BREAK, KW_CONTINUE,
     KW_OP, KW_CONST, KW_LOOP, KW_IN,
 
+    // error
+    KW_ERR,
+
     // Operators & punctuation
     PLUS, MINUS, STAR, SLASH, PERCENT, ASSIGN, PLUS_EQ, MINUS_EQ,
     EQ, NEQ, LT, LTE, GT, GTE,

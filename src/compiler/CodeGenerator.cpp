@@ -1058,7 +1058,7 @@ Op CodeGenerator::getBinaryOp(BinaryExpr::Op op) {
 bool CodeGenerator::isBuiltinFunction(const std::string& name) {
     // List of built-in functions that should use CALL_NATIVE
     static const std::vector<std::string> builtins = {
-        "println", "print", "input", "str", "int", "float",
+        "println", "print", "input", "str", "int", "float", "exit",
         "len", "push", "pop", "get", "set", "has", "del",
         "keys", "values", "substr", "charAt", "concat"
     };

@@ -39,6 +39,8 @@ struct Type {
     std::vector<std::shared_ptr<Type>> typeParams;  // For LIST, DICT, generics
     std::vector<std::shared_ptr<Type>> paramTypes;  // For FUNCTION types
     std::shared_ptr<Type> returnType;  // For FUNCTION types
+    bool canReturnError = false;  // For FUNCTION types
+    bool isChecked = false;      // tracks if error has been handled
     FieldDecl::Visibility visibility;
 
     Type(Kind k) : kind(k) {}
@@ -70,28 +72,33 @@ struct Type {
     }
 
     std::string toString() const {
+        std::string append = "";
+        if (canReturnError && !isChecked) {
+            append = "!";
+        }
         switch (kind) {
-            case Kind::INT: return "int";
-            case Kind::FLOAT: return "float";
-            case Kind::BOOL: return "bool";
-            case Kind::STRING: return "str";
-            case Kind::NULL_TYPE: return "null";
-            case Kind::VOID: return "void";
+            case Kind::INT: return "int" + append;
+            case Kind::FLOAT: return "float"  + append;
+            case Kind::BOOL: return "bool" + append;
+            case Kind::STRING: return "str" + append;
+            case Kind::NULL_TYPE: return "null" + append;
+            case Kind::VOID: return "void" + append;
             case Kind::LIST:
-                return "list[" + (typeParams.empty() ? "?" : typeParams[0]->toString()) + "]";
+                return "list[" + (typeParams.empty() ? "?" : typeParams[0]->toString()) + "]" + append;
             case Kind::DICT:
                 return "dict[" +
-                       (typeParams.size() < 2 ? "?,?" : typeParams[0]->toString() + "," + typeParams[1]->toString()) + "]";
+                       (typeParams.size() < 2 ? "?,?" : typeParams[0]->toString() + "," + typeParams[1]->toString()) + "]" + append;
             case Kind::OBJECT:
-                return className;
+                return className + append;
             case Kind::FUNCTION:
-                return "fn(...)";
+                return "fn(...)" + append;
             case Kind::GENERIC:
-                return className;  // Generic type parameter name
+                return className + append;  // Generic type parameter name
             case Kind::UNKNOWN:
-                return "?";
+                return "?" + append;
         }
-        return "?";
+
+        return "?" + append;
     }
 
     bool isNumeric() const {
@@ -210,7 +217,13 @@ private:
     std::unordered_map<std::string, ClassInfo> classes;
     std::string currentClassName;
     std::shared_ptr<Type> currentFunctionReturnType;
+    bool currentFunctionMayReturnError;
     ModuleLoader* moduleLoader = nullptr;
+    bool isInIsErrorCheck = false;
+
+    // checking error
+    void enforceErrorCheck(const std::string& varName, const std::shared_ptr<Type>& type);
+    bool blockDefinitelyReturns(const Stmt* stmt);
 
     // process imports
     void processImports(const Program& program);

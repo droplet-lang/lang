@@ -1,0 +1,30 @@
+// The base error class
+class Error {
+    message: str
+
+    new(message: str) {
+        self.message = message
+    }
+}
+
+class M {
+    fn testError(x: int) -> str! {
+        if(x == 1) {
+            return Error("Error occurred")
+        }
+        return "Hello"
+    }
+}
+
+fn main() {
+    let mObj = M()
+    let result = mObj.testError(1)
+
+
+    if result is Error {
+        println(result.message)
+        exit(100)
+    }
+
+    println(result)
+}

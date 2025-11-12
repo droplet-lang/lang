@@ -26,7 +26,7 @@ std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"import", TokenType::KW_IMPORT}, {"use", TokenType::KW_USE}, {"break", TokenType::KW_BREAK},
     {"continue", TokenType::KW_CONTINUE}, {"op", TokenType::KW_OP}, {"const", TokenType::KW_CONST},
     {"loop", TokenType::KW_LOOP}, {"true", TokenType::BOOL}, {"false", TokenType::BOOL},
-    {"null", TokenType::NULLVAL},{"in", TokenType::KW_IN}
+    {"null", TokenType::NULLVAL},{"in", TokenType::KW_IN}, {"err", TokenType::KW_ERR}
 };
 
 Lexer::Lexer(std::string source) : source(std::move(source)) {}

@@ -1,8 +1,10 @@
 @ffi("./libmath.dll", sig="i,i->i")
 fn add_numbers(a: int, b: int) -> int
 
+@ffi("./libmath.dll", sig="i->s")
+fn get_name(len: int) -> str
 
 fn main() {
-    let sum = add_numbers(10, 32)
-    println("10 + 32 =", sum)
+    let sum = get_name(5)
+    println(sum)
 }
