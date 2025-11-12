@@ -52,7 +52,7 @@ void TypeChecker::processImports(const Program &program) {
             continue;
         }
 
-        // NEW: Check if module was already type-checked
+        // Check if module was already type-checked
         if (module->isTypeChecked) {
             std::cerr << "Module " << import->modulePath
                     << " already type-checked, reusing existing class info\n";
@@ -117,7 +117,7 @@ void TypeChecker::importSymbolsFromModule(const ModuleInfo *module, const Import
                                        ? Type::Void()
                                        : resolveType(func->returnType);
 
-            // NEW: Preserve the error return flag
+            // Preserve the error return flag
             funcType->canReturnError = func->mayReturnError;
 
             Symbol symbol(Symbol::Kind::FUNCTION, func->name, funcType);
@@ -148,7 +148,7 @@ void TypeChecker::importSymbolsFromModule(const ModuleInfo *module, const Import
                                                ? Type::Void()
                                                : resolveType(func->returnType);
 
-                    // NEW: Preserve the error return flag
+                    // Preserve the error return flag
                     funcType->canReturnError = func->mayReturnError;
 
                     Symbol symbol(Symbol::Kind::FUNCTION, func->name, funcType);
@@ -300,7 +300,7 @@ void TypeChecker::check(const Program &program) {
             ? Type::Void()
             : resolveType(func->returnType);
 
-        // NEW: Manually set the error flag if the function may return error
+        // Manually set the error flag if the function may return error
         if (func->mayReturnError && funcType->returnType) {
             funcType->returnType->canReturnError = true;
             funcType->returnType->isChecked = false;
@@ -347,7 +347,7 @@ void TypeChecker::analyzeClass(const ClassDecl *classDecl) {
 
     // Collect fields (check for duplicates)
     for (const auto &field: classDecl->fields) {
-        // NEW: Check if field already exists
+        // Check if field already exists
         if (info.fields.find(field.name) != info.fields.end()) {
             error("Duplicate field '" + field.name + "' in class '" + classDecl->name + "'");
         }
@@ -396,7 +396,7 @@ void TypeChecker::analyzeClassHierarchy() {
 
     // Compute field offsets
     for (auto &[className, classInfo]: classes) {
-        // NEW: Only compute if not already computed
+        // Only compute if not already computed
         if (classInfo.fieldOffsets.empty() || classInfo.totalFieldCount == 0) {
             computeFieldOffsets(classInfo);
         } else {
@@ -407,7 +407,7 @@ void TypeChecker::analyzeClassHierarchy() {
 }
 
 void TypeChecker::computeFieldOffsets(ClassInfo &info) {
-    // NEW: If already computed, skip
+    // If already computed, skip
     if (info.totalFieldCount > 0) {
         return;
     }
@@ -644,11 +644,6 @@ void TypeChecker::checkVarDecl(const VarDeclStmt* stmt) {
         error("Variable '" + stmt->name + "' must have type annotation or initializer");
     }
 
-    // DEBUG: See what type we're defining
-    std::cerr << "Defining variable '" << stmt->name
-              << "' with type: " << varType->toString()
-              << ", canReturnError: " << varType->canReturnError << "\n";
-
     Symbol symbol(Symbol::Kind::VARIABLE, stmt->name, varType);
     currentScope->define(symbol);
 }
@@ -700,21 +695,14 @@ void TypeChecker::checkIf(const IfStmt *stmt) {
         enterScope();
         // Guard pattern support
         if (isErrorCheck && !narrowedVar.empty() && thenReturns && !stmt->elseBranch) {
-            std::cerr << "Guard pattern detected for variable: " << narrowedVar << "\n";
             Symbol *originalSymbol = currentScope->resolve(narrowedVar);
             if (originalSymbol && originalSymbol->type->canReturnError) {
-                std::cerr << "Unwrapping " << narrowedVar << " in current scope\n";
                 // Unwrap in current scope
                 auto unwrappedType = std::make_shared<Type>(*originalSymbol->type);
                 unwrappedType->canReturnError = false;
                 unwrappedType->isChecked = true;
                 Symbol unwrappedSymbol(Symbol::Kind::VARIABLE, narrowedVar, unwrappedType);
                 currentScope->define(unwrappedSymbol);
-                std::cerr << "After unwrap - canReturnError: " << unwrappedSymbol.type->canReturnError << "\n";
-            } else {
-                std::cerr << "Could not unwrap - originalSymbol found: " << (originalSymbol != nullptr)
-                        << ", canReturnError: " << (originalSymbol ? originalSymbol->type->canReturnError : false) <<
-                        "\n";
             }
         }
         checkStmt(stmt->elseBranch.get());
@@ -857,11 +845,6 @@ std::shared_ptr<Type> TypeChecker::checkIdentifier(const IdentifierExpr *expr) {
     if (!symbol) {
         error("Undefined variable '" + expr->name + "'");
     }
-    std::cerr << "Checking identifier '" << expr->name
-            << "' - canReturnError: " << symbol->type->canReturnError
-            << ", isChecked: " << symbol->type->isChecked << "\n";
-    enforceErrorCheck(expr->name, symbol->type);
-
     return symbol->type;
 }
 
@@ -1301,10 +1284,6 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr *expr) {
                 }
 
                 auto returnType = symbol->type->returnType;
-                std::cerr << "Function '" << id->name << "' return type: "
-                          << returnType->toString()
-                          << ", canReturnError: " << returnType->canReturnError
-                          << ", isChecked: " << returnType->isChecked << "\n";
                 return symbol->type->returnType;
             }
         }
@@ -1486,7 +1465,7 @@ std::shared_ptr<Type> TypeChecker::checkCast(const CastExpr *expr) {
 }
 
 std::shared_ptr<Type> TypeChecker::checkIs(const IsExpr* expr) {
-    // NEW: Temporarily disable error checking when evaluating the expression
+    // Temporarily disable error checking when evaluating the expression
     bool wasInIsErrorCheck = isInIsErrorCheck;
     isInIsErrorCheck = true;
 
