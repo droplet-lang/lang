@@ -418,6 +418,7 @@ StmtPtr Parser::parseStatement() {
 }
 
 StmtPtr Parser::parseVarDecl() {
+    Token letToken = previous(); // We just matched KW_LET
     Token varName = consume(TokenType::IDENTIFIER, "Expected variable name");
 
     std::string type;
@@ -430,10 +431,17 @@ StmtPtr Parser::parseVarDecl() {
         initializer = parseExpression();
     }
 
-    return std::make_unique<VarDeclStmt>(varName.lexeme, type, std::move(initializer));
+    auto stmt = std::make_unique<VarDeclStmt>(varName.lexeme, type, std::move(initializer));
+    stmt->line = letToken.line;
+    stmt->column = letToken.column;
+
+    std::cerr << "[PARSER] VarDecl at line " << stmt->line << "\n";
+
+    return stmt;
 }
 
 StmtPtr Parser::parseIfStmt() {
+    Token ifToken = previous(); // We just matched KW_IF
     ExprPtr condition = parseExpression();
     StmtPtr thenBranch = parseBlock();
 
@@ -447,48 +455,82 @@ StmtPtr Parser::parseIfStmt() {
         }
     }
 
-    return std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch),
-                                     std::move(elseBranch));
+    auto stmt = std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch),
+                                         std::move(elseBranch));
+    stmt->line = ifToken.line;
+    stmt->column = ifToken.column;
+
+    std::cerr << "[PARSER] IfStmt at line " << stmt->line << "\n";
+
+    return stmt;
 }
 
 StmtPtr Parser::parseWhileStmt() {
+    Token whileToken = previous(); // We just matched KW_WHILE
     ExprPtr condition = parseExpression();
     StmtPtr body = parseBlock();
-    return std::make_unique<WhileStmt>(std::move(condition), std::move(body));
+
+    auto stmt = std::make_unique<WhileStmt>(std::move(condition), std::move(body));
+    stmt->line = whileToken.line;
+    stmt->column = whileToken.column;
+    return stmt;
 }
 
 StmtPtr Parser::parseForStmt() {
+    Token forToken = previous(); // We just matched KW_FOR
     Token varName = consume(TokenType::IDENTIFIER, "Expected variable name");
     consume(TokenType::KW_IN, "Expected 'in' after variable");
     ExprPtr iterable = parseExpression();
     StmtPtr body = parseBlock();
 
-    return std::make_unique<ForStmt>(varName.lexeme, std::move(iterable),
-                                      std::move(body));
+    auto stmt = std::make_unique<ForStmt>(varName.lexeme, std::move(iterable),
+                                          std::move(body));
+    stmt->line = forToken.line;
+    stmt->column = forToken.column;
+    return stmt;
 }
 
 StmtPtr Parser::parseLoopStmt() {
+    Token loopToken = previous(); // We just matched KW_LOOP
     StmtPtr body = parseBlock();
-    return std::make_unique<LoopStmt>(std::move(body));
+
+    auto stmt = std::make_unique<LoopStmt>(std::move(body));
+    stmt->line = loopToken.line;
+    stmt->column = loopToken.column;
+    return stmt;
 }
 
 StmtPtr Parser::parseReturnStmt() {
+    Token returnToken = previous(); // We just matched KW_RETURN
     ExprPtr value = nullptr;
     if (!check(TokenType::SEMICOLON) && !check(TokenType::RBRACE) && !check(TokenType::EOF_TOKEN)) {
         value = parseExpression();
     }
-    return std::make_unique<ReturnStmt>(std::move(value));
+
+    auto stmt = std::make_unique<ReturnStmt>(std::move(value));
+    stmt->line = returnToken.line;
+    stmt->column = returnToken.column;
+    return stmt;
 }
 
 StmtPtr Parser::parseBreakStmt() {
-    return std::make_unique<BreakStmt>();
+    Token breakToken = previous(); // We just matched KW_BREAK
+    auto stmt = std::make_unique<BreakStmt>();
+    stmt->line = breakToken.line;
+    stmt->column = breakToken.column;
+    return stmt;
 }
 
 StmtPtr Parser::parseContinueStmt() {
-    return std::make_unique<ContinueStmt>();
+    Token continueToken = previous(); // We just matched KW_CONTINUE
+    auto stmt = std::make_unique<ContinueStmt>();
+    stmt->line = continueToken.line;
+    stmt->column = continueToken.column;
+    return stmt;
 }
 
 StmtPtr Parser::parseBlock() {
+    Token lbraceToken = peek(); // Capture before consuming
     consume(TokenType::LBRACE, "Expected '{'");
 
     std::vector<StmtPtr> statements;
@@ -497,12 +539,24 @@ StmtPtr Parser::parseBlock() {
     }
 
     consume(TokenType::RBRACE, "Expected '}'");
-    return std::make_unique<BlockStmt>(std::move(statements));
+
+    auto stmt = std::make_unique<BlockStmt>(std::move(statements));
+    stmt->line = lbraceToken.line;
+    stmt->column = lbraceToken.column;
+    return stmt;
 }
 
 StmtPtr Parser::parseExprStmt() {
+    Token firstToken = peek(); // Get current token for line info
     ExprPtr expr = parseExpression();
-    return std::make_unique<ExprStmt>(std::move(expr));
+
+    auto stmt = std::make_unique<ExprStmt>(std::move(expr));
+    stmt->line = firstToken.line;
+    stmt->column = firstToken.column;
+
+    std::cerr << "[PARSER] ExprStmt at line " << stmt->line << "\n";
+
+    return stmt;
 }
 
 ExprPtr Parser::parseExpression() {
@@ -510,64 +564,89 @@ ExprPtr Parser::parseExpression() {
 }
 
 ExprPtr Parser::parseAssignment() {
+    Token tok = peek(); // Capture before parsing
     ExprPtr expr = parseLogicalOr();
 
     if (match({TokenType::ASSIGN})) {
         ExprPtr value = parseAssignment();
-        return std::make_unique<AssignExpr>(std::move(expr), std::move(value));
+        auto assignExpr = std::make_unique<AssignExpr>(std::move(expr), std::move(value));
+        assignExpr->line = tok.line;
+        assignExpr->column = tok.column;
+        return assignExpr;
     }
 
     if (match({TokenType::PLUS_EQ})) {
         ExprPtr value = parseAssignment();
-        return std::make_unique<CompoundAssignExpr>(CompoundAssignExpr::Op::ADD,
-                                                      std::move(expr), std::move(value));
+        auto compExpr = std::make_unique<CompoundAssignExpr>(CompoundAssignExpr::Op::ADD,
+                                                              std::move(expr), std::move(value));
+        compExpr->line = tok.line;
+        compExpr->column = tok.column;
+        return compExpr;
     }
 
     if (match({TokenType::MINUS_EQ})) {
         ExprPtr value = parseAssignment();
-        return std::make_unique<CompoundAssignExpr>(CompoundAssignExpr::Op::SUB,
-                                                      std::move(expr), std::move(value));
+        auto compExpr = std::make_unique<CompoundAssignExpr>(CompoundAssignExpr::Op::SUB,
+                                                              std::move(expr), std::move(value));
+        compExpr->line = tok.line;
+        compExpr->column = tok.column;
+        return compExpr;
     }
 
     return expr;
 }
 
 ExprPtr Parser::parseLogicalOr() {
+    Token tok = peek();
     ExprPtr expr = parseLogicalAnd();
 
     while (match({TokenType::OR})) {
         ExprPtr right = parseLogicalAnd();
-        expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::OR, std::move(expr),
-                                             std::move(right));
+        auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::OR, std::move(expr),
+                                                     std::move(right));
+        binExpr->line = tok.line;
+        binExpr->column = tok.column;
+        expr = std::move(binExpr);
     }
 
     return expr;
 }
 
 ExprPtr Parser::parseLogicalAnd() {
+    Token tok = peek();
     ExprPtr expr = parseEquality();
 
     while (match({TokenType::AND})) {
         ExprPtr right = parseEquality();
-        expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::AND, std::move(expr),
-                                             std::move(right));
+        auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::AND, std::move(expr),
+                                                     std::move(right));
+        binExpr->line = tok.line;
+        binExpr->column = tok.column;
+        expr = std::move(binExpr);
     }
 
     return expr;
 }
 
 ExprPtr Parser::parseEquality() {
+    Token tok = peek();
     ExprPtr expr = parseComparison();
 
     while (true) {
         if (match({TokenType::EQ})) {
             ExprPtr right = parseComparison();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::EQ, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::EQ, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else if (match({TokenType::NEQ})) {
             ExprPtr right = parseComparison();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::NEQ, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::NEQ, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else {
             break;
         }
@@ -577,25 +656,38 @@ ExprPtr Parser::parseEquality() {
 }
 
 ExprPtr Parser::parseComparison() {
+    Token tok = peek();
     ExprPtr expr = parseTerm();
 
     while (true) {
         if (match({TokenType::LT})) {
             ExprPtr right = parseTerm();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::LT, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::LT, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else if (match({TokenType::LTE})) {
             ExprPtr right = parseTerm();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::LTE, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::LTE, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else if (match({TokenType::GT})) {
             ExprPtr right = parseTerm();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::GT, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::GT, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else if (match({TokenType::GTE})) {
             ExprPtr right = parseTerm();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::GTE, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::GTE, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else {
             break;
         }
@@ -605,17 +697,24 @@ ExprPtr Parser::parseComparison() {
 }
 
 ExprPtr Parser::parseTerm() {
+    Token tok = peek();
     ExprPtr expr = parseFactor();
 
     while (true) {
         if (match({TokenType::PLUS})) {
             ExprPtr right = parseFactor();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::ADD, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::ADD, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else if (match({TokenType::MINUS})) {
             ExprPtr right = parseFactor();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::SUB, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::SUB, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else {
             break;
         }
@@ -625,21 +724,31 @@ ExprPtr Parser::parseTerm() {
 }
 
 ExprPtr Parser::parseFactor() {
+    Token tok = peek();
     ExprPtr expr = parseUnary();
 
     while (true) {
         if (match({TokenType::STAR})) {
             ExprPtr right = parseUnary();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::MUL, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::MUL, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else if (match({TokenType::SLASH})) {
             ExprPtr right = parseUnary();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::DIV, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::DIV, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else if (match({TokenType::PERCENT})) {
             ExprPtr right = parseUnary();
-            expr = std::make_unique<BinaryExpr>(BinaryExpr::Op::MOD, std::move(expr),
-                                                 std::move(right));
+            auto binExpr = std::make_unique<BinaryExpr>(BinaryExpr::Op::MOD, std::move(expr),
+                                                         std::move(right));
+            binExpr->line = tok.line;
+            binExpr->column = tok.column;
+            expr = std::move(binExpr);
         } else {
             break;
         }
@@ -649,14 +758,22 @@ ExprPtr Parser::parseFactor() {
 }
 
 ExprPtr Parser::parseUnary() {
+    Token tok = peek();
+
     if (match({TokenType::NOT})) {
         ExprPtr operand = parseUnary();
-        return std::make_unique<UnaryExpr>(UnaryExpr::Op::NOT, std::move(operand));
+        auto expr = std::make_unique<UnaryExpr>(UnaryExpr::Op::NOT, std::move(operand));
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     if (match({TokenType::MINUS})) {
         ExprPtr operand = parseUnary();
-        return std::make_unique<UnaryExpr>(UnaryExpr::Op::NEG, std::move(operand));
+        auto expr = std::make_unique<UnaryExpr>(UnaryExpr::Op::NEG, std::move(operand));
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     return parsePostfix();
@@ -673,11 +790,19 @@ ExprPtr Parser::parsePostfix() {
         } else if (match({TokenType::LBRACKET})) {
             expr = parseIndex(std::move(expr));
         } else if (match({TokenType::KW_AS})) {
+            Token asTok = previous();
             std::string targetType = parseType();
-            expr = std::make_unique<CastExpr>(std::move(expr), targetType);
+            auto castExpr = std::make_unique<CastExpr>(std::move(expr), targetType);
+            castExpr->line = asTok.line;
+            castExpr->column = asTok.column;
+            expr = std::move(castExpr);
         } else if (match({TokenType::KW_IS})) {
+            Token isTok = previous();
             std::string targetType = parseType();
-            expr = std::make_unique<IsExpr>(std::move(expr), targetType);
+            auto isExpr = std::make_unique<IsExpr>(std::move(expr), targetType);
+            isExpr->line = isTok.line;
+            isExpr->column = isTok.column;
+            expr = std::move(isExpr);
         } else {
             break;
         }
@@ -687,30 +812,51 @@ ExprPtr Parser::parsePostfix() {
 }
 
 ExprPtr Parser::parsePrimary() {
+    Token tok = peek(); // Capture token BEFORE advancing
+
     if (match({TokenType::INT})) {
         int64_t value = std::stoll(previous().lexeme);
-        return std::make_unique<LiteralExpr>(value);
+        auto expr = std::make_unique<LiteralExpr>(value);
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     if (match({TokenType::FLOAT})) {
         double value = std::stod(previous().lexeme);
-        return std::make_unique<LiteralExpr>(value);
+        auto expr = std::make_unique<LiteralExpr>(value);
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     if (match({TokenType::BOOL})) {
         bool value = previous().lexeme == "true";
-        return std::make_unique<LiteralExpr>(value);
+        auto expr = std::make_unique<LiteralExpr>(value);
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     if (match({TokenType::STRING})) {
-        return std::make_unique<LiteralExpr>(previous().lexeme);
+        auto expr = std::make_unique<LiteralExpr>(previous().lexeme);
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
+
     if (match({TokenType::NULLVAL})) {
-        return std::make_unique<LiteralExpr>(LiteralExpr::Null());
+        auto expr = std::make_unique<LiteralExpr>(LiteralExpr::Null());
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     if (match({TokenType::IDENTIFIER})) {
-        return std::make_unique<IdentifierExpr>(previous().lexeme);
+        auto expr = std::make_unique<IdentifierExpr>(previous().lexeme);
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     if (match({TokenType::KW_NEW})) {
@@ -728,30 +874,49 @@ ExprPtr Parser::parsePrimary() {
     }
 
     if (match({TokenType::KW_SELF})) {
-        return std::make_unique<IdentifierExpr>("self");
+        auto expr = std::make_unique<IdentifierExpr>("self");
+        expr->line = tok.line;
+        expr->column = tok.column;
+        return expr;
     }
 
     throw error("Expected expression");
 }
 
 ExprPtr Parser::parseCall(ExprPtr callee) {
+    Token tok = previous(); // LPAREN was just matched
     std::vector<ExprPtr> arguments = parseArguments();
     consume(TokenType::RPAREN, "Expected ')' after arguments");
-    return std::make_unique<CallExpr>(std::move(callee), std::move(arguments));
+
+    auto expr = std::make_unique<CallExpr>(std::move(callee), std::move(arguments));
+    expr->line = tok.line;
+    expr->column = tok.column;
+    return expr;
 }
 
 ExprPtr Parser::parseFieldAccess(ExprPtr object) {
+    Token dotToken = previous(); // DOT was just matched
     Token field = consume(TokenType::IDENTIFIER, "Expected field name after '.'");
-    return std::make_unique<FieldAccessExpr>(std::move(object), field.lexeme);
+
+    auto expr = std::make_unique<FieldAccessExpr>(std::move(object), field.lexeme);
+    expr->line = dotToken.line;
+    expr->column = dotToken.column;
+    return expr;
 }
 
 ExprPtr Parser::parseIndex(ExprPtr object) {
+    Token lbracketToken = previous(); // LBRACKET was just matched
     ExprPtr index = parseExpression();
     consume(TokenType::RBRACKET, "Expected ']' after index");
-    return std::make_unique<IndexExpr>(std::move(object), std::move(index));
+
+    auto expr = std::make_unique<IndexExpr>(std::move(object), std::move(index));
+    expr->line = lbracketToken.line;
+    expr->column = lbracketToken.column;
+    return expr;
 }
 
 ExprPtr Parser::parseNewExpr() {
+    Token newToken = previous(); // KW_NEW was just matched
     Token className = consume(TokenType::IDENTIFIER, "Expected class name after 'new'");
 
     std::vector<std::string> typeParams = parseTypeParams();
@@ -760,10 +925,14 @@ ExprPtr Parser::parseNewExpr() {
     std::vector<ExprPtr> arguments = parseArguments();
     consume(TokenType::RPAREN, "Expected ')' after arguments");
 
-    return std::make_unique<NewExpr>(className.lexeme, typeParams, std::move(arguments));
+    auto expr = std::make_unique<NewExpr>(className.lexeme, typeParams, std::move(arguments));
+    expr->line = newToken.line;
+    expr->column = newToken.column;
+    return expr;
 }
 
 ExprPtr Parser::parseListLiteral() {
+    Token lbracketToken = previous(); // LBRACKET was just matched
     std::vector<ExprPtr> elements;
 
     if (!check(TokenType::RBRACKET)) {
@@ -773,7 +942,11 @@ ExprPtr Parser::parseListLiteral() {
     }
 
     consume(TokenType::RBRACKET, "Expected ']' after list elements");
-    return std::make_unique<ListExpr>(std::move(elements));
+
+    auto expr = std::make_unique<ListExpr>(std::move(elements));
+    expr->line = lbracketToken.line;
+    expr->column = lbracketToken.column;
+    return expr;
 }
 
 ExprPtr Parser::parseDictLiteral() const {

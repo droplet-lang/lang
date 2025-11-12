@@ -25,6 +25,8 @@
 #include <string>
 #include <memory>
 
+struct FunctionDebugInfo;
+
 struct LocalVar {
     std::string name;
     uint8_t slot;
@@ -76,17 +78,24 @@ struct LoopContext {
 
 class CodeGenerator {
 public:
-    explicit CodeGenerator(const TypeChecker& typeChecker)
-        : typeChecker(typeChecker) {}
 
-    void setModuleLoader(ModuleLoader* loader) {
-        moduleLoader = loader;
-    }
+    explicit CodeGenerator(const TypeChecker& typeChecker): typeChecker(typeChecker) {}
 
     // Main entry point
     bool generate(const Program& program, const std::string& outputPath);
 
     bool generateWithModules(const Program& mainProgram, const std::string& outputPath);
+
+    void setGenerateDebugInfo(bool enable) { generateDebugInfo = enable; }
+    void setSourceFile(const std::string& file) { currentSourceFile = file; }
+
+    const std::map<uint32_t, FunctionDebugInfo>& getDebugInfo() const {
+        return debugInfoMap;
+    }
+
+    void setModuleLoader(ModuleLoader* loader) {
+        moduleLoader = loader;
+    }
 
 private:
     DBCBuilder builder;
@@ -98,6 +107,18 @@ private:
     std::vector<LoopContext> loopStack;
     ModuleLoader* moduleLoader = nullptr;
     std::unordered_map<std::string, FFIInfo*> ffiRegistry;
+
+    bool generateDebugInfo = false;
+    std::map<uint32_t, FunctionDebugInfo> debugInfoMap;
+    std::string currentSourceFile;
+    uint32_t currentFunctionIndex = 0;
+
+    uint32_t lastRecordedLine = 0;
+    uint32_t lastRecordedColumn = 0;
+
+    void recordDebugLocation(DBCBuilder::FunctionBuilder& fb,  uint32_t line, uint32_t column);
+    void finalizeDebugInfo(uint32_t funcIdx, const std::string& funcName);
+
 
     void registerFFI(const std::string& name, FFIInfo* decl) {
         ffiRegistry[name] = decl;

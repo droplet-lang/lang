@@ -13,6 +13,7 @@
  * ============================================================
  */
 #include "VM.h"
+#include "../debugger/Debugger.h"
 
 #include <cmath>
 #include <fstream>
@@ -77,6 +78,15 @@ void VM::run() {
     // GC GC GC
     while (!call_frames.empty()) {
         allocator.collect_garbage_if_needed(stack_manager, globals);
+
+        // DEBUG MODE: Check if we should break
+        if (debugMode && debugger && debugger->shouldBreak()) {
+            debugger->pause();
+            debugger->debugLoop();
+            if (!debugger->isRunning) {
+                return;  // User quit debugger
+            }
+        }
 
         CallFrame &frame = call_frames.back();
         Function *func = frame.function;

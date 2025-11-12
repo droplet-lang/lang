@@ -26,6 +26,8 @@
 #include "StackManager.h"
 #include "Value.h"
 
+class Debugger;
+
 struct VM {
     VM() {
         stack_manager.sp = 0;
@@ -34,6 +36,13 @@ struct VM {
     StackManager stack_manager;
     FFIHelper ffi;
     Allocator allocator;
+    Debugger* debugger = nullptr;
+    bool debugMode = false;
+
+    void setDebugger(Debugger* dbg) {
+        debugger = dbg;
+        debugMode = (dbg != nullptr);
+    }
 
     // Native registry
     std::unordered_map<std::string, NativeFunction> native_functions_registry;
