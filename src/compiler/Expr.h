@@ -28,6 +28,9 @@ using StmtPtr = std::unique_ptr<Stmt>;
 struct Expr {
     virtual ~Expr() = default;
     std::shared_ptr<Type> type;
+
+    uint32_t line = 0;
+    uint32_t column = 0;
 };
 
 struct LiteralExpr final : Expr {

@@ -13,6 +13,7 @@
  * ============================================================
  */
 #include "CodeGenerator.h"
+#include "../debugger/Debugger.h"
 
 #include <algorithm>
 #include <iostream>
@@ -51,6 +52,12 @@ bool CodeGenerator::generateWithModules(const Program& mainProgram, const std::s
 
             std::cerr << "Generating code for module: " << modulePath << "\n";
 
+            // CRITICAL FIX: Set the source file for this module
+            std::string previousSourceFile = currentSourceFile;
+            currentSourceFile = module->filePath;
+
+            std::cerr << "  Source file: " << currentSourceFile << "\n";
+
             // Generate classes
             for (auto& classDecl : module->ast->classes) {
                 generateClass(classDecl.get());
@@ -66,13 +73,15 @@ bool CodeGenerator::generateWithModules(const Program& mainProgram, const std::s
                 }
                 generateFunction(func.get(), func->name);
             }
+
+            // Restore previous source file
+            currentSourceFile = previousSourceFile;
         }
     }
 
     // Phase 2: Generate main program
     return generate(mainProgram, outputPath);
 }
-
 
 uint32_t CodeGenerator::addStringConstant(const std::string& str) {
     auto it = stringConstants.find(str);
@@ -138,16 +147,19 @@ void CodeGenerator::generateClass(ClassDecl* classDecl) {
 void CodeGenerator::generateConstructor(ClassDecl* classDecl) {
     std::string ctorName = mangleName(classDecl->name, "new");
 
-    // Get the current function count BEFORE adding
-    uint32_t ctorIdx = static_cast<uint32_t>(builder.functions.size());
+    currentFunctionIndex = static_cast<uint32_t>(builder.functions.size());
 
-    // Register FIRST
-    functionIndices[ctorName] = ctorIdx;
+    // Initialize debug info
+    if (generateDebugInfo) {
+        FunctionDebugInfo& info = debugInfoMap[currentFunctionIndex];
+        info.name = ctorName;
+        info.file = currentSourceFile;
+    }
 
-    // Then add the function
+    functionIndices[ctorName] = currentFunctionIndex;
+
     auto& fb = builder.addFunction(ctorName);
 
-    // Constructor parameters (no self in args, we create the object)
     uint8_t paramCount = static_cast<uint8_t>(classDecl->constructor->params.size());
     fb.setArgCount(paramCount);
 
@@ -158,7 +170,6 @@ void CodeGenerator::generateConstructor(ClassDecl* classDecl) {
     currentFunction = &ctx;
 
     // Add constructor parameters to locals FIRST
-    // Params start at local slot 0
     for (size_t i = 0; i < classDecl->constructor->params.size(); i++) {
         ctx.addLocal(classDecl->constructor->params[i].name);
     }
@@ -167,31 +178,27 @@ void CodeGenerator::generateConstructor(ClassDecl* classDecl) {
     uint32_t classNameIdx = addStringConstant(classDecl->name);
     fb.newObject(classNameIdx);
 
-    // Store as 'self' in a local slot AFTER params
     uint8_t selfSlot = ctx.addLocal("self");
     fb.storeLocal(selfSlot);
 
     ctx.localCount = static_cast<uint8_t>(ctx.locals.size());
     fb.setLocalCount(ctx.localCount);
 
-    // Now initialize ALL fields by matching params to fields
-    // This ensures fields get the values passed to the constructor
+    // Initialize ALL fields
     for (const auto& field : classDecl->fields) {
         if (!field.isStatic) {
             uint32_t fieldNameIdx = addStringConstant(field.name);
-            fb.loadLocal(selfSlot);  // Load self
+            fb.loadLocal(selfSlot);
 
-            // Check if there's a constructor parameter with the same name
             bool foundParam = false;
             for (size_t i = 0; i < classDecl->constructor->params.size(); i++) {
                 if (classDecl->constructor->params[i].name == field.name) {
-                    fb.loadLocal(static_cast<uint8_t>(i)); // Load parameter value
+                    fb.loadLocal(static_cast<uint8_t>(i));
                     foundParam = true;
                     break;
                 }
             }
 
-            // If no matching param, use field initializer or nil
             if (!foundParam) {
                 if (field.initializer) {
                     generateExpr(field.initializer.get(), fb);
@@ -200,7 +207,7 @@ void CodeGenerator::generateConstructor(ClassDecl* classDecl) {
                 }
             }
 
-            fb.setField(fieldNameIdx);  // Set the field
+            fb.setField(fieldNameIdx);
         }
     }
 
@@ -214,9 +221,13 @@ void CodeGenerator::generateConstructor(ClassDecl* classDecl) {
         }
     }
 
-    // Return self
     fb.loadLocal(selfSlot);
     fb.ret(1);
+
+    // Finalize debug info
+    if (generateDebugInfo) {
+        finalizeDebugInfo(currentFunctionIndex, ctorName);
+    }
 
     currentFunction = nullptr;
 }
@@ -225,10 +236,17 @@ void CodeGenerator::generateFunction(FunctionDecl* func, const std::string& mang
     std::string funcName = mangledName.empty() ? func->name : mangledName;
 
     // Get the current function count BEFORE adding
-    uint32_t funcIdx = static_cast<uint32_t>(builder.functions.size());
+    currentFunctionIndex = static_cast<uint32_t>(builder.functions.size());
+
+    // Initialize debug info for this function
+    if (generateDebugInfo) {
+        FunctionDebugInfo& info = debugInfoMap[currentFunctionIndex];
+        info.name = funcName;
+        info.file = currentSourceFile;
+    }
 
     // Register FIRST
-    functionIndices[funcName] = funcIdx;
+    functionIndices[funcName] = currentFunctionIndex;
 
     // Then add the function
     auto& fb = builder.addFunction(funcName);
@@ -242,10 +260,19 @@ void CodeGenerator::generateFunction(FunctionDecl* func, const std::string& mang
 
     generateFunctionBody(func, fb);
 
+    // Finalize debug info for this function
+    if (generateDebugInfo) {
+        finalizeDebugInfo(currentFunctionIndex, funcName);
+    }
+
     currentFunction = nullptr;
 }
 
 void CodeGenerator::generateStmt(Stmt* stmt, DBCBuilder::FunctionBuilder& fb) {
+    if (generateDebugInfo && stmt->line > 0) {
+        recordDebugLocation(fb, stmt->line, stmt->column);
+    }
+
     if (auto varDecl = dynamic_cast<VarDeclStmt*>(stmt)) {
         generateVarDecl(varDecl, fb);
     } else if (auto block = dynamic_cast<BlockStmt*>(stmt)) {
@@ -460,8 +487,17 @@ void CodeGenerator::generateLoop(LoopStmt* stmt, DBCBuilder::FunctionBuilder& fb
 void CodeGenerator::generateReturn(ReturnStmt* stmt, DBCBuilder::FunctionBuilder& fb) {
     if (stmt->value) {
         generateExpr(stmt->value.get(), fb);
+
+        // Record location before return
+        if (generateDebugInfo && stmt->line > 0) {
+            recordDebugLocation(fb, stmt->line, stmt->column);
+        }
+
         fb.ret(1);
     } else {
+        if (generateDebugInfo && stmt->line > 0) {
+            recordDebugLocation(fb, stmt->line, stmt->column);
+        }
         fb.ret(0);
     }
 }
@@ -496,6 +532,10 @@ void CodeGenerator::generateExprStmt(ExprStmt* stmt, DBCBuilder::FunctionBuilder
 // ============================================================================
 
 void CodeGenerator::generateExpr(Expr* expr, DBCBuilder::FunctionBuilder& fb) {
+    if (generateDebugInfo && expr->line > 0) {
+        recordDebugLocation(fb, expr->line, expr->column);
+    }
+
     if (auto lit = dynamic_cast<LiteralExpr*>(expr)) {
         generateLiteral(lit, fb);
     } else if (auto id = dynamic_cast<IdentifierExpr*>(expr)) {
@@ -706,10 +746,6 @@ void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb
             if (!mangledName.empty()) {
                 auto it = functionIndices.find(mangledName);
                 if (it != functionIndices.end()) {
-                    std::cerr << "DEBUG: Calling method '" << mangledName
-                              << "' at index " << it->second
-                              << " with " << expr->arguments.size() << " args\n";
-
                     // Push self FIRST
                     generateExpr(fieldAccess->object.get(), fb);
 
@@ -720,7 +756,10 @@ void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb
 
                     // argc includes self + all arguments
                     uint8_t argc = static_cast<uint8_t>(expr->arguments.size() + 1);
-                    std::cerr << "DEBUG: Total argc (including self): " << (int)argc << "\n";
+                    if (generateDebugInfo && expr->line > 0) {
+                        recordDebugLocation(fb, expr->line, expr->column);
+                    }
+
                     fb.call(it->second, argc);
                     return;
                 } else {
@@ -757,6 +796,10 @@ void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb
             const uint32_t symIdx = addStringConstant(id->name);
             const uint32_t sigIdx = addStringConstant(ffiDecl->sig);
 
+            if (generateDebugInfo && expr->line > 0) {
+                recordDebugLocation(fb, expr->line, expr->column);
+            }
+
             fb.callFFI(libIdx, symIdx, argc, sigIdx);
             return;
         }
@@ -773,6 +816,10 @@ void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb
             std::string builtinName = getBuiltinFunctionName(id->name);
             uint32_t nameIdx = addStringConstant(builtinName);
             uint8_t argc = static_cast<uint8_t>(expr->arguments.size());
+
+            if (generateDebugInfo && expr->line > 0) {
+                recordDebugLocation(fb, expr->line, expr->column);
+            }
 
             fb.emit(OP_CALL_NATIVE);
             fb.emitU32(nameIdx);
@@ -822,45 +869,38 @@ void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb
 void CodeGenerator::generateMethod(FunctionDecl* method, const std::string& className) {
     std::string methodName = mangleName(className, method->name);
 
-    // Get the current function count BEFORE adding
-    uint32_t methodIdx = static_cast<uint32_t>(builder.functions.size());
+    currentFunctionIndex = static_cast<uint32_t>(builder.functions.size());
 
-    // Register FIRST
-    functionIndices[methodName] = methodIdx;
+    // Initialize debug info
+    if (generateDebugInfo) {
+        FunctionDebugInfo& info = debugInfoMap[currentFunctionIndex];
+        info.name = methodName;
+        info.file = currentSourceFile;
+    }
 
-    // Then add the function
+    functionIndices[methodName] = currentFunctionIndex;
+
     auto& fb = builder.addFunction(methodName);
 
-    // STATIC vs INSTANCE methods:
-    // - Static methods: NO self parameter, argc = params.size()
-    // - Instance methods: self as first parameter, argc = params.size() + 1
     uint8_t paramCount;
     if (method->isStatic) {
         paramCount = static_cast<uint8_t>(method->params.size());
     } else {
-        paramCount = static_cast<uint8_t>(method->params.size() + 1); // +1 for self
+        paramCount = static_cast<uint8_t>(method->params.size() + 1);
     }
     fb.setArgCount(paramCount);
-
-    std::cerr << "DEBUG: Method argc set to " << (int)paramCount
-              << (method->isStatic ? " (static)" : " (including self)") << "\n";
 
     FunctionContext ctx;
     ctx.builder = &fb;
     ctx.className = className;
     currentFunction = &ctx;
 
-    // Add 'self' as local 0 ONLY for instance methods
     if (!method->isStatic) {
         ctx.addLocal("self");
-        std::cerr << "DEBUG: Added 'self' at local slot 0\n";
     }
 
-    // Add method parameters
     for (size_t i = 0; i < method->params.size(); i++) {
-        uint8_t slot = ctx.addLocal(method->params[i].name);
-        std::cerr << "DEBUG: Added param '" << method->params[i].name
-                  << "' at local slot " << (int)slot << "\n";
+        ctx.addLocal(method->params[i].name);
     }
 
     ctx.localCount = static_cast<uint8_t>(ctx.locals.size());
@@ -877,20 +917,20 @@ void CodeGenerator::generateMethod(FunctionDecl* method, const std::string& clas
         }
     }
 
-    // CRITICAL FIX: ALL functions must return something!
-    // Even void functions need to push nil so that OP_POP has something to pop
-    // when the function is called as an expression statement
     if (method->returnType.empty() || method->returnType == "void") {
-        fb.pushConst(builder.addConstNil());  // Push nil for void functions
-        fb.ret(1);  // Return 1 value (the nil)
+        fb.pushConst(builder.addConstNil());
+        fb.ret(1);
     } else {
         fb.pushConst(builder.addConstNil());
         fb.ret(1);
     }
 
     fb.setLocalCount(ctx.localCount);
-    std::cerr << "DEBUG: Method '" << methodName << "' local count: "
-              << (int)ctx.localCount << "\n\n";
+
+    // Finalize debug info
+    if (generateDebugInfo) {
+        finalizeDebugInfo(currentFunctionIndex, methodName);
+    }
 
     currentFunction = nullptr;
 }
@@ -1110,9 +1150,13 @@ void CodeGenerator::generateBinary(BinaryExpr* expr, DBCBuilder::FunctionBuilder
             std::cerr << "DEBUG: Calling operator overload '" << mangledName
                       << "' at index " << it->second << "\n";
 
+            // Record location before the call
+            if (generateDebugInfo && expr->line > 0) {
+                recordDebugLocation(fb, expr->line, expr->column);
+            }
+
             // Push self (left operand)
             generateExpr(expr->left.get(), fb);
-
             // Push argument (right operand)
             generateExpr(expr->right.get(), fb);
 
@@ -1125,24 +1169,72 @@ void CodeGenerator::generateBinary(BinaryExpr* expr, DBCBuilder::FunctionBuilder
         }
     }
 
-    // NEW: Special handling for string concatenation
+    // Generate operands for regular operations
+    generateExpr(expr->left.get(), fb);
+    generateExpr(expr->right.get(), fb);
+
+    // Record location before emitting the operator
+    if (generateDebugInfo && expr->line > 0) {
+        recordDebugLocation(fb, expr->line, expr->column);
+    }
+
+    // Special handling for string concatenation
     if (expr->op == BinaryExpr::Op::ADD) {
         // Check if both operands are strings
         if (expr->left->type && expr->right->type &&
             expr->left->type->kind == Type::Kind::STRING &&
             expr->right->type->kind == Type::Kind::STRING) {
-
-            // Use OP_STRING_CONCAT instead of OP_ADD
-            generateExpr(expr->left.get(), fb);
-            generateExpr(expr->right.get(), fb);
             fb.emit(OP_STRING_CONCAT);
             return;
-            }
+        }
     }
 
     // Default numeric operation (fallback)
-    generateExpr(expr->left.get(), fb);
-    generateExpr(expr->right.get(), fb);
     Op op = getBinaryOp(expr->op);
     fb.emit(op);
+}
+
+void CodeGenerator::recordDebugLocation(DBCBuilder::FunctionBuilder& fb, uint32_t line, uint32_t column) {
+    if (!generateDebugInfo || currentSourceFile.empty()) {
+        return;
+    }
+
+    // Avoid recording duplicate locations for sequential instructions
+    if (line == lastRecordedLine && column == lastRecordedColumn) {
+        return;
+    }
+
+    uint32_t ip = fb.currentPos();
+
+    // Get or create debug info for current function
+    FunctionDebugInfo& info = debugInfoMap[currentFunctionIndex];
+
+    // Record IP -> SourceLocation mapping
+    info.ipToLocation[ip] = SourceLocation{currentSourceFile, line, column};
+
+    lastRecordedLine = line;
+    lastRecordedColumn = column;
+}
+
+
+void CodeGenerator::finalizeDebugInfo(uint32_t funcIdx, const std::string& funcName) {
+    if (!generateDebugInfo) {
+        return;
+    }
+
+    FunctionDebugInfo& info = debugInfoMap[funcIdx];
+
+    if (info.name.empty()) {
+        info.name = funcName;
+    }
+    if (info.file.empty()) {
+        info.file = currentSourceFile;
+    }
+
+    // Copy local variables from FunctionContext
+    if (currentFunction) {
+        for (const auto& [varName, slot, s] : currentFunction->locals) {
+            info.localVariables[varName] = slot;
+        }
+    }
 }
