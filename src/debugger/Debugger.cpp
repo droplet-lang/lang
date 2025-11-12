@@ -18,6 +18,13 @@
 #include <algorithm>
 #include <iomanip>
 
+static std::string toLower(const std::string &str) {
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return result;
+}
+
 Debugger::Debugger(VM *vm)
     : vm(vm), stepMode(StepMode::NONE), isRunning(false),
       stepFrameDepth(0), nextBreakpointId(1) {
@@ -76,9 +83,10 @@ void Debugger::stepNextLine() {
 }
 
 uint32_t Debugger::addBreakpoint(const std::string &file, uint32_t line) {
+    std::string normalizedFile = toLower(file); // normalize path
     uint32_t id = nextBreakpointId++;
-    breakpoints[id] = std::make_unique<Breakpoint>(id, file, line);
-    std::cout << "Breakpoint " << id << " set at " << file << ":" << line << "\n";
+    breakpoints[id] = std::make_unique<Breakpoint>(id, normalizedFile, line);
+    std::cout << "Breakpoint " << id << " set at " << normalizedFile << ":" << line << "\n";
     return id;
 }
 
@@ -348,10 +356,13 @@ bool Debugger::shouldBreak() {
             break;
 
         case StepMode::CONTINUE:
-            // Check breakpoints
         {
             SourceLocation loc = getCurrentLocation();
             if (!loc.file.empty() && hasBreakpointAt(loc.file, loc.line)) {
+                // FIX: When we hit a breakpoint, switch to STEP_INTO mode
+                // so we don't immediately continue again
+                stepMode = StepMode::STEP_INTO;
+                std::cout << "\nBreakpoint hit at " << loc.file << ":" << loc.line << "\n";
                 return true;
             }
         }
@@ -394,8 +405,9 @@ void Debugger::debugLoop() {
 }
 
 bool Debugger::hasBreakpointAt(const std::string &file, uint32_t line) const {
+    std::string normalizedFile = toLower(file);
     for (const auto &[id, bp]: breakpoints) {
-        if (bp->enabled && bp->file == file && bp->line == line) {
+        if (bp->enabled && toLower(bp->file) == normalizedFile && bp->line == line) {
             return true;
         }
     }
@@ -476,8 +488,8 @@ std::vector<std::string> Debugger::tokenizeCommand(const std::string &cmd) {
     return tokens;
 }
 
-void Debugger::executeCommand(const std::vector<std::string>& tokens) {
-    const std::string& cmd = tokens[0];
+void Debugger::executeCommand(const std::vector<std::string> &tokens) {
+    const std::string &cmd = tokens[0];
 
     if (cmd == "step" || cmd == "s") {
         handleStep(tokens);
@@ -503,12 +515,23 @@ void Debugger::executeCommand(const std::vector<std::string>& tokens) {
         handleQuit(tokens);
     } else if (cmd == "help" || cmd == "h") {
         handleHelp(tokens);
+    } else if (cmd == "clear" || cmd == "cls") {
+        handleClear(tokens);
     } else {
         std::cout << "Unknown command: " << cmd << ". Type 'help' for available commands.\n";
     }
 }
 
-void Debugger::handleStep(const std::vector<std::string>& args) {
+void Debugger::handleClear(const std::vector<std::string> &args) {
+#if defined(_WIN32)
+    system("cls");
+#else
+    std::cout << "\033[2J\033[H"; // ANSI escape codes: clear screen + move cursor to home
+#endif
+}
+
+
+void Debugger::handleStep(const std::vector<std::string> &args) {
     stepNextLine();
 }
 
@@ -516,7 +539,7 @@ void Debugger::handleNext(const std::vector<std::string> &args) {
     stepNextLine();
 }
 
-void Debugger::handleStepInstruction(const std::vector<std::string>& args) {
+void Debugger::handleStepInstruction(const std::vector<std::string> &args) {
     stepInto();
 }
 
@@ -538,7 +561,7 @@ void Debugger::handleBreak(const std::vector<std::string> &args) {
     std::string file;
     uint32_t line;
 
-    size_t colonPos = location.find(':');
+    size_t colonPos = location.rfind(':'); // find last colon
     if (colonPos != std::string::npos) {
         file = location.substr(0, colonPos);
         line = std::stoul(location.substr(colonPos + 1));
@@ -548,6 +571,7 @@ void Debugger::handleBreak(const std::vector<std::string> &args) {
         file = loc.file;
         line = std::stoul(location);
     }
+
 
     addBreakpoint(file, line);
 }
@@ -599,7 +623,7 @@ void Debugger::handleQuit(const std::vector<std::string> &args) {
     exit(0);
 }
 
-void Debugger::handleHelp(const std::vector<std::string>& args) {
+void Debugger::handleHelp(const std::vector<std::string> &args) {
     std::cout << "Droplet Debugger Commands:\n\n";
     std::cout << "Execution Control:\n";
     std::cout << "  step, s, next, n    Step to next source line\n";
@@ -620,6 +644,9 @@ void Debugger::handleHelp(const std::vector<std::string>& args) {
     std::cout << "  info stack          Show stack contents\n";
     std::cout << "  backtrace, bt       Show call stack\n";
     std::cout << "  list [n], l         List source code (n lines of context)\n\n";
+
+    std::cout << "Utility:\n";
+    std::cout << "  clear, cls          Clear the console screen\n\n";
 
     std::cout << "Notes:\n";
     std::cout << "  - Pressing Enter repeats the last step/next command\n";
