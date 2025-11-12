@@ -7,23 +7,24 @@ class Error {
     }
 }
 
-fn testError(x: int) -> str! {
-    if(x == 1) {
-        return Error("Sulav is a goood boy")
+class M {
+    fn testError(x: int) -> str! {
+        if(x == 1) {
+            return Error("Error occurred")
+        }
+        return "Hello"
     }
-
-    return "Hello"
 }
 
-
 fn main() {
-    let result = testError(1)
+    let mObj = M()
+    let result = mObj.testError(1)
+
+
     if result is Error {
-        // handle error
         println(result.message)
         exit(100)
     }
 
-    // or walk normally
     println(result)
 }
