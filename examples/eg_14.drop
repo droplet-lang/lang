@@ -7,7 +7,9 @@ class Error {
     }
 }
 
-class M {
+class H {
+    new() {}
+
     fn testError(x: int) -> str! {
         if(x == 1) {
             return Error("Error occurred")
@@ -17,8 +19,8 @@ class M {
 }
 
 fn main() {
-    let mObj = M()
-    let result = mObj.testError(1)
+    let co = H()
+    let result = co.testError(1)
 
 
     if result is Error {

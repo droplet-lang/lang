@@ -453,17 +453,11 @@ void TypeChecker::computeFieldOffsets(ClassInfo &info) {
 }
 
 std::shared_ptr<Type> TypeChecker::resolveType(const std::string& typeStr) {
-    std::cerr << "resolveType called with: '" << typeStr << "'\n";
-
     if (!typeStr.empty() && typeStr.back() == '!') {
         std::string baseType = typeStr.substr(0, typeStr.length() - 1);
         auto type = resolveTypeWithGenerics(baseType, {});
         type->canReturnError = true;
         type->isChecked = false;
-
-        std::cerr << "  Created error type: " << type->toString()
-                  << ", canReturnError: " << type->canReturnError << "\n";
-
         return type;
     }
     return resolveTypeWithGenerics(typeStr, {});
@@ -693,11 +687,10 @@ void TypeChecker::checkIf(const IfStmt *stmt) {
     // Check ELSE branch with opposite narrowing
     if (stmt->elseBranch) {
         enterScope();
-        // Guard pattern support
-        if (isErrorCheck && !narrowedVar.empty() && thenReturns && !stmt->elseBranch) {
-            Symbol *originalSymbol = currentScope->resolve(narrowedVar);
+        if (isErrorCheck && !narrowedVar.empty()) {  // ← FIXED: Removed the wrong condition
+            Symbol *originalSymbol = currentScope->parent->resolve(narrowedVar);
             if (originalSymbol && originalSymbol->type->canReturnError) {
-                // Unwrap in current scope
+                // In else-branch: variable is NOT Error (unwrapped)
                 auto unwrappedType = std::make_shared<Type>(*originalSymbol->type);
                 unwrappedType->canReturnError = false;
                 unwrappedType->isChecked = true;
@@ -845,6 +838,7 @@ std::shared_ptr<Type> TypeChecker::checkIdentifier(const IdentifierExpr *expr) {
     if (!symbol) {
         error("Undefined variable '" + expr->name + "'");
     }
+    enforceErrorCheck(expr->name, symbol->type);
     return symbol->type;
 }
 
