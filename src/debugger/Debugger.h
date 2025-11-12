@@ -125,6 +125,8 @@ private:
     [[nodiscard]] static std::vector<std::string> tokenizeCommand(const std::string& cmd);
     void executeCommand(const std::vector<std::string>& tokens);
 
+    static void handleClear(const std::vector<std::string> &args);
+
     // Command handlers
     void handleStep(const std::vector<std::string>& args);
     void handleNext(const std::vector<std::string>& args);
