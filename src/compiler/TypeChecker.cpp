@@ -192,6 +192,14 @@ void TypeChecker::registerBuiltinTypes() {
 }
 
 void TypeChecker::registerBuiltins() const {
+    // exit(...) -> void
+    {
+        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
+        funcType->returnType = Type::Void();
+        Symbol symbol(Symbol::Kind::FUNCTION, "exit", funcType);
+        globalScope->define(symbol);
+    }
+
     // print(...) -> void
     {
         auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
@@ -487,6 +495,8 @@ void TypeChecker::checkFunction(const FunctionDecl* func) {
         ? Type::Void()
         : resolveType(func->returnType);
 
+    currentFunctionMayReturnError = func->mayReturnError;
+
     // Add 'self' parameter if this is a method
     if (!currentClassName.empty() && !func->isStatic) {
         auto selfType = Type::Object(currentClassName);
@@ -623,8 +633,13 @@ void TypeChecker::checkReturn(const ReturnStmt* stmt) {
     if (stmt->value) {
         auto returnType = checkExpr(stmt->value.get());
         if (!isAssignable(currentFunctionReturnType, returnType)) {
-            error("Return type mismatch: expected " +
-                  currentFunctionReturnType->toString() + ", got " + returnType->toString());
+            if (currentFunctionMayReturnError && returnType->kind == Type::Kind::OBJECT) {
+                // TODO ensure a Error object can only be else returned
+                // also check if its a descendants of Error class and Error class exists
+                // if error class does not exists add a stub??
+            } else {
+                error("Return type mismatch: expected " +currentFunctionReturnType->toString() + ", got " + returnType->toString());
+            }
         }
     } else {
         if (currentFunctionReturnType->kind != Type::Kind::VOID) {
@@ -1059,6 +1074,7 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
 
         // (b) BUILT-IN FUNCTIONS
         if (
+            id->name == "exit" ||
             id->name == "print" ||
             id->name == "println" ||
             id->name == "str" ||
@@ -1088,8 +1104,7 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr* expr) {
                 for (size_t i = 0; i < expr->arguments.size(); ++i) {
                     auto argType = checkExpr(expr->arguments[i].get());
                     if (!isAssignable(symbol->type->paramTypes[i], argType)) {
-                        error("Argument " + std::to_string(i + 1) +
-                              " type mismatch in call to '" + id->name + "'");
+                        error("Argument " + std::to_string(i + 1) + " type mismatch in call to '" + id->name + "'");
                         return Type::Unknown();
                     }
                 }

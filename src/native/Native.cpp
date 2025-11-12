@@ -113,6 +113,23 @@ void native_float(VM& vm, const uint8_t argc) {
     }
 }
 
+// Native float function
+void native_exit(VM& vm, const uint8_t argc) {
+    if (argc != 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        vm.stack_manager.push(Value::createDOUBLE(0.0));
+        return;
+    }
+
+    Value v = vm.stack_manager.pop();
+    try {
+        const int result = std::stoi(v.toString());
+        exit(result);
+    } catch (...) {
+        exit(1);
+    }
+}
+
 // Native input function
 void native_input(VM& vm, const uint8_t argc) {
     std::string line;

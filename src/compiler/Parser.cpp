@@ -230,9 +230,19 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isMethod) {
         }
     }
 
+    // check if there may be error
+    // T?
+    bool mayError = false;
+    if (check(TokenType::NOT)) {
+        consume(TokenType::NOT, "Error");
+        mayError = true;
+    }
+
     StmtPtr body = parseBlock();
 
-    return std::make_unique<FunctionDecl>(funcName.lexeme, params, returnType, std::move(body));
+    auto func = std::make_unique<FunctionDecl>(funcName.lexeme, params, returnType, std::move(body));
+    func->mayReturnError = mayError;
+    return func;
 }
 
 std::unique_ptr<FunctionDecl> Parser::parseFFIDecl() {

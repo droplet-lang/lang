@@ -39,6 +39,7 @@ struct Type {
     std::vector<std::shared_ptr<Type>> typeParams;  // For LIST, DICT, generics
     std::vector<std::shared_ptr<Type>> paramTypes;  // For FUNCTION types
     std::shared_ptr<Type> returnType;  // For FUNCTION types
+    bool canReturnError = false;  // For FUNCTION types
     FieldDecl::Visibility visibility;
 
     Type(Kind k) : kind(k) {}
@@ -210,6 +211,7 @@ private:
     std::unordered_map<std::string, ClassInfo> classes;
     std::string currentClassName;
     std::shared_ptr<Type> currentFunctionReturnType;
+    bool currentFunctionMayReturnError;
     ModuleLoader* moduleLoader = nullptr;
 
     // process imports
