@@ -6,6 +6,7 @@
 #define DROPLET_NATIVEREGISTERIES_H
 #include <string>
 #include <vector>
+#include "../compiler/TypeChecker.h"
 
 // We need native to be freely added with as less code dependencies as possible
 // Lexer, Parser, etc. takes the definition from here
