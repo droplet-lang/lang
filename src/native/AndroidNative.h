@@ -8,6 +8,7 @@
 #if defined(__ANDROID__)
 #include <android/log.h>
 #include <jni.h>
+#include "../vm/VM.h"
 
 #define LOG_TAG "DropletVM"
 
