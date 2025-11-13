@@ -71,6 +71,89 @@ struct VM {
 
     // This is going to be huge rn, won-t refactor for clarity unless finalized
     void run();
+
+       bool execute_callback(Value callback, const std::vector<Value>& args = {}) {
+        // Determine what kind of callable this is
+        int functionIndex = -1;
+        Value receiver;
+        bool hasReceiver = false;
+
+        if (callback.type == ValueType::OBJECT && callback.current_value.object) {
+            // Check if it's a bound method
+            auto* boundMethod = dynamic_cast<ObjBoundMethod*>(callback.current_value.object);
+            if (boundMethod) {
+                functionIndex = boundMethod->methodIndex;
+                receiver = boundMethod->receiver;
+                hasReceiver = true;
+            } else {
+                // Check if it's a function object
+                auto* fnObj = dynamic_cast<ObjFunction*>(callback.current_value.object);
+                if (fnObj) {
+                    functionIndex = fnObj->functionIndex;
+                    hasReceiver = false;
+                }
+            }
+        }
+
+        if (functionIndex < 0 || functionIndex >= static_cast<int>(functions.size())) {
+            return false;
+        }
+
+        Function* targetFunction = functions[functionIndex].get();
+        if (!targetFunction) {
+            return false;
+        }
+
+        // Push receiver if this is a method call
+        if (hasReceiver) {
+            stack_manager.push(receiver);
+        }
+
+        // Push all arguments
+        for (const auto& arg : args) {
+            stack_manager.push(arg);
+        }
+
+        // Calculate argument count (receiver + args for methods, just args for functions)
+        size_t totalArgs = args.size() + (hasReceiver ? 1 : 0);
+
+        // Validate argument count matches what the function expects
+        if (totalArgs > targetFunction->localCount) {
+            // Too many arguments, pop them all
+            for (size_t i = 0; i < totalArgs; i++) {
+                stack_manager.pop();
+            }
+            return false;
+        }
+
+        // Set up the call frame
+        uint32_t localStartsAt = stack_manager.sp - totalArgs;
+
+        // Push NIL for additional local variable slots
+        uint8_t additionalLocals = targetFunction->localCount > totalArgs ?
+                                   targetFunction->localCount - totalArgs : 0;
+
+        for (uint8_t i = 0; i < additionalLocals; i++) {
+            stack_manager.push(Value::createNIL());
+        }
+
+        CallFrame frame;
+        frame.function = targetFunction;
+        frame.ip = 0;
+        frame.localStartsAt = localStartsAt;
+
+        call_frames.push_back(frame);
+
+        // Execute the callback
+        run();
+
+        return true;
+    }
+
+    // Helper to check if VM is in a valid state for execution
+    bool is_ready() const {
+        return !functions.empty();
+    }
 };
 
 

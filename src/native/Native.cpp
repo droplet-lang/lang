@@ -263,7 +263,6 @@ void native_forEach(VM& vm, const uint8_t argc) {
     vm.stack_manager.push(Value::createNIL());
 }
 
-// Alternative simpler version that doesn't execute inline
 void native_forEach_simple(VM& vm, const uint8_t argc) {
     if (argc != 2) {
         for (int i = 0; i < argc; i++) vm.stack_manager.pop();

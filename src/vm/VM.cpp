@@ -335,6 +335,7 @@ void VM::run() {
                 do_return(retCount);
                 break;
             }
+            // Add this debug code to OP_CALL_NATIVE in VM.cpp
             case OP_CALL_NATIVE: {
                 uint32_t nameIdx = frame.read_u32();
                 uint8_t argc = frame.read_u8();
@@ -347,7 +348,6 @@ void VM::run() {
                 }
 
                 Value nameVal = global_constants[nameIdx];
-
                 auto *on = dynamic_cast<ObjString *>(nameVal.current_value.object);
                 if (!on) {
                     std::cerr << "CALL_NATIVE: name not string\n";
@@ -357,6 +357,27 @@ void VM::run() {
                 }
 
                 std::string nativeName = on->value;
+
+                // DEBUG: Log stack contents before native call
+                std::cerr << "CALL_NATIVE: " << nativeName << " with " << (int) argc << " args\n";
+                for (int i = argc - 1; i >= 0; i--) {
+                    if (stack_manager.sp > i) {
+                        Value &arg = stack_manager.stack[stack_manager.sp - 1 - i];
+                        std::cerr << "  arg[" << i << "]: type=" << static_cast<int>(arg.type);
+                        if (arg.type == ValueType::OBJECT && arg.current_value.object) {
+                            auto *bm = dynamic_cast<ObjBoundMethod *>(arg.current_value.object);
+                            if (bm) {
+                                std::cerr << " (BoundMethod, index=" << bm->methodIndex << ")";
+                            }
+                            auto *fn = dynamic_cast<ObjFunction *>(arg.current_value.object);
+                            if (fn) {
+                                std::cerr << " (Function, index=" << fn->functionIndex << ")";
+                            }
+                        }
+                        std::cerr << "\n";
+                    }
+                }
+
                 auto it = native_functions_registry.find(nativeName);
                 if (it == native_functions_registry.end()) {
                     std::cerr << "CALL_NATIVE: not found " << nativeName << "\n";
