@@ -51,6 +51,9 @@ add_executable(droplet main.cpp
         src/native/Native.h
         src/debugger/Debugger.cpp
         src/debugger/Debugger.h
+        src/native/AndroidNative.cpp
+        src/native/AndroidNative.h
+        src/native/NativeRegisteries.h
 )
 
 target_link_libraries(droplet PRIVATE ffi)

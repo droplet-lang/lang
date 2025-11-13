@@ -18,6 +18,8 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "../native/NativeRegisteries.h"
+
 void TypeChecker::registerFFIFunctions(const std::vector<std::unique_ptr<FunctionDecl> > &funcs) {
     for (auto &f: funcs) {
         if (f->ffi.has_value()) {
@@ -199,71 +201,12 @@ void TypeChecker::registerBuiltinTypes() {
 }
 
 void TypeChecker::registerBuiltins() const {
-    // exit(...) -> void
-    {
+    for (const auto &b : ALL_NATIVE_FUNCTIONS) {
         auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->returnType = Type::Void();
-        Symbol symbol(Symbol::Kind::FUNCTION, "exit", funcType);
-        globalScope->define(symbol);
-    }
+        funcType->returnType = b.second.returnType;
+        funcType->paramTypes = b.second.paramTypes;
 
-    // print(...) -> void
-    {
-        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->returnType = Type::Void();
-        Symbol symbol(Symbol::Kind::FUNCTION, "print", funcType);
-        globalScope->define(symbol);
-    }
-
-    // println(...) -> void
-    {
-        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->returnType = Type::Void();
-        Symbol symbol(Symbol::Kind::FUNCTION, "println", funcType);
-        globalScope->define(symbol);
-    }
-
-    // str(value) -> str
-    {
-        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->paramTypes.push_back(Type::Unknown());
-        funcType->returnType = Type::String();
-        Symbol symbol(Symbol::Kind::FUNCTION, "str", funcType);
-        globalScope->define(symbol);
-    }
-
-    // len(collection) -> int
-    {
-        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->paramTypes.push_back(Type::Unknown());
-        funcType->returnType = Type::Int();
-        Symbol symbol(Symbol::Kind::FUNCTION, "len", funcType);
-        globalScope->define(symbol);
-    }
-
-    // int(value) -> int
-    {
-        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->paramTypes.push_back(Type::Unknown());
-        funcType->returnType = Type::Int();
-        Symbol symbol(Symbol::Kind::FUNCTION, "int", funcType);
-        globalScope->define(symbol);
-    }
-
-    // float(value) -> float
-    {
-        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->paramTypes.push_back(Type::Unknown());
-        funcType->returnType = Type::Float();
-        Symbol symbol(Symbol::Kind::FUNCTION, "float", funcType);
-        globalScope->define(symbol);
-    }
-
-    // input(...) -> str
-    {
-        auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        funcType->returnType = Type::String();
-        Symbol symbol(Symbol::Kind::FUNCTION, "input", funcType);
+        Symbol symbol(Symbol::Kind::FUNCTION, b.second.name, funcType);
         globalScope->define(symbol);
     }
 }
@@ -290,15 +233,15 @@ void TypeChecker::check(const Program &program) {
     analyzeClassHierarchy();
 
     // Phase 3: Register global functions
-    for (auto& func : program.functions) {
+    for (auto &func: program.functions) {
         auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
-        for (const auto& param : func->params) {
+        for (const auto &param: func->params) {
             funcType->paramTypes.push_back(resolveType(param.type));
         }
 
         funcType->returnType = func->returnType.empty()
-            ? Type::Void()
-            : resolveType(func->returnType);
+                                   ? Type::Void()
+                                   : resolveType(func->returnType);
 
         // Manually set the error flag if the function may return error
         if (func->mayReturnError && funcType->returnType) {
@@ -452,7 +395,7 @@ void TypeChecker::computeFieldOffsets(ClassInfo &info) {
     info.totalFieldCount = offset;
 }
 
-std::shared_ptr<Type> TypeChecker::resolveType(const std::string& typeStr) {
+std::shared_ptr<Type> TypeChecker::resolveType(const std::string &typeStr) {
     if (!typeStr.empty() && typeStr.back() == '!') {
         std::string baseType = typeStr.substr(0, typeStr.length() - 1);
         auto type = resolveTypeWithGenerics(baseType, {});
@@ -463,13 +406,14 @@ std::shared_ptr<Type> TypeChecker::resolveType(const std::string& typeStr) {
     return resolveTypeWithGenerics(typeStr, {});
 }
 
-void TypeChecker::enforceErrorCheck(const std::string& varName, const std::shared_ptr<Type>& type) {
+void TypeChecker::enforceErrorCheck(const std::string &varName, const std::shared_ptr<Type> &type) {
     if (isInIsErrorCheck) {
         return;
     }
 
     if (type->canReturnError && !type->isChecked) {
-        error("Cannot use a possibly failing value of type " + type->toString() + " without handling the Error first. " + "Use 'if " + varName + " is Error { ... }' to check.");
+        error("Cannot use a possibly failing value of type " + type->toString() + " without handling the Error first. "
+              + "Use 'if " + varName + " is Error { ... }' to check.");
     }
 }
 
@@ -616,7 +560,7 @@ void TypeChecker::checkStmt(Stmt *stmt) {
     }
 }
 
-void TypeChecker::checkVarDecl(const VarDeclStmt* stmt) {
+void TypeChecker::checkVarDecl(const VarDeclStmt *stmt) {
     std::shared_ptr<Type> varType;
 
     if (!stmt->type.empty()) {
@@ -624,7 +568,7 @@ void TypeChecker::checkVarDecl(const VarDeclStmt* stmt) {
     }
 
     if (stmt->initializer) {
-        auto initType = checkExpr(stmt->initializer.get());  // ← This calls checkCall
+        auto initType = checkExpr(stmt->initializer.get()); // ← This calls checkCall
 
         if (varType) {
             if (!isAssignable(varType, initType)) {
@@ -632,7 +576,7 @@ void TypeChecker::checkVarDecl(const VarDeclStmt* stmt) {
                       varType->toString() + ", got " + initType->toString());
             }
         } else {
-            varType = initType;  // ← The variable gets the return type from the function
+            varType = initType; // ← The variable gets the return type from the function
         }
     } else if (!varType) {
         error("Variable '" + stmt->name + "' must have type annotation or initializer");
@@ -687,7 +631,8 @@ void TypeChecker::checkIf(const IfStmt *stmt) {
     // Check ELSE branch with opposite narrowing
     if (stmt->elseBranch) {
         enterScope();
-        if (isErrorCheck && !narrowedVar.empty()) {  // ← FIXED: Removed the wrong condition
+        if (isErrorCheck && !narrowedVar.empty()) {
+            // ← FIXED: Removed the wrong condition
             Symbol *originalSymbol = currentScope->parent->resolve(narrowedVar);
             if (originalSymbol && originalSymbol->type->canReturnError) {
                 // In else-branch: variable is NOT Error (unwrapped)
@@ -1242,15 +1187,9 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr *expr) {
         }
 
         // (b) BUILT-IN FUNCTIONS
+        auto it = ALL_NATIVE_FUNCTIONS.find(id->name);
         if (
-            id->name == "exit" ||
-            id->name == "print" ||
-            id->name == "println" ||
-            id->name == "str" ||
-            id->name == "len" ||
-            id->name == "int" ||
-            id->name == "float" ||
-            id->name == "input"
+            it != ALL_NATIVE_FUNCTIONS.end()
         ) {
             for (auto &arg: expr->arguments) checkExpr(arg.get());
             return Type::Void();
@@ -1458,7 +1397,7 @@ std::shared_ptr<Type> TypeChecker::checkCast(const CastExpr *expr) {
     return type;
 }
 
-std::shared_ptr<Type> TypeChecker::checkIs(const IsExpr* expr) {
+std::shared_ptr<Type> TypeChecker::checkIs(const IsExpr *expr) {
     // Temporarily disable error checking when evaluating the expression
     bool wasInIsErrorCheck = isInIsErrorCheck;
     isInIsErrorCheck = true;
