@@ -15,16 +15,22 @@ struct BuiltinInfo {
     std::vector<std::shared_ptr<Type>> paramTypes;
 };
 
-const std::unordered_map<std::string, BuiltinInfo> ALL_NATIVE_FUNCTIONS = {
-    {"exit", {"exit", Type::Void(), {}}},
-    {"print", {"print", Type::Void(), {}}},
-    {"println", {"println", Type::Void(), {}}},
-    {"str", {"str", Type::String(), {Type::Unknown()}}},
-    {"len", {"len", Type::Int(), {Type::Unknown()}}},
-    {"int", {"int", Type::Int(), {Type::Unknown()}}},
-    {"float", {"float", Type::Float(), {Type::Unknown()}}},
-    {"input", {"input", Type::String(), {}}},
-    {"android_native_toast", {"android_native_toast", Type::String(), {}}}
-};
+inline std::unordered_map<std::string, BuiltinInfo> ALL_NATIVE_FUNCTIONS;
+
+// Helper to register a function
+inline void registerNative(const BuiltinInfo& func) {
+    ALL_NATIVE_FUNCTIONS[func.name] = func;
+}
+
+inline void initCoreBuiltins() {
+    registerNative({"exit", Type::Void(), {}});
+    registerNative({"print", Type::Void(), {}});
+    registerNative({"println", Type::Void(), {}});
+    registerNative({"str", Type::String(), {Type::Unknown()}});
+    registerNative({"len", Type::Int(), {Type::Unknown()}});
+    registerNative({"int", Type::Int(), {Type::Unknown()}});
+    registerNative({"float", Type::Float(), {Type::Unknown()}});
+    registerNative({"input", Type::String(), {}});
+}
 
 #endif //DROPLET_NATIVEREGISTERIES_H

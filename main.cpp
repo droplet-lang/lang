@@ -10,6 +10,7 @@
 
 #include "src/debugger/Debugger.h"
 #include "src/native/Native.h"
+#include "src/native/NativeRegisteries.h"
 #include "src/vm/Loader.h"
 
 enum class Mode {
@@ -180,6 +181,8 @@ bool compile_source(const std::string &inputPath, const std::string &outputPath,
         if (verbose) {
             std::cout << "=== Compiling " << inputPath << " ===\n\n";
         }
+
+        initCoreBuiltins();
 
         // Lexical Analysis
         if (verbose) std::cout << "[1/4] Lexical Analysis...\n";
