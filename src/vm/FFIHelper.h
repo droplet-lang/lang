@@ -14,7 +14,9 @@
  */
 #ifndef DROPLET_FFI_H
 #define DROPLET_FFI_H
+#if !defined(__ANDROID__)
 #include <ffi.h>
+#endif
 #include <string>
 #include <unordered_map>
 #include <vector>
