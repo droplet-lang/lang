@@ -34,6 +34,7 @@ inline void initCoreBuiltins() {
     registerNative({"input", Type::String(), {}});
     registerNative({"android_create_button", Type::String(), {}});
     registerNative({"android_native_toast", Type::String(), {}});
+    registerNative({"append", Type::Void(), {Type::List(Type::Unknown()), Type::Unknown()}});
 }
 
 #endif //DROPLET_NATIVEREGISTERIES_H

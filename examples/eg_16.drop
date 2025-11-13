@@ -1,0 +1,153 @@
+fn add(a: int, b: int) -> int {
+    return a + b
+}
+
+fn main() -> void {
+    // Assign function to variable
+    let operation: fn(int, int) -> int = add
+
+    // Call through variable
+    let result: int = operation(5, 3)
+    print(result)  // Output: 8
+}
+// Example 2: Function as parameter (callback)
+fn forEach(items: list[int], callback: fn(int) -> void) -> void {
+    for item in items {
+        callback(item)
+    }
+}
+
+fn printItem(x: int) -> void {
+    print(x)
+}
+
+fn main() -> void {
+    let numbers: list[int] = [1, 2, 3, 4, 5]
+    forEach(numbers, printItem)  // Prints each number
+}
+
+// Example 3: Method reference
+class Calculator {
+    multiplier: int
+
+    new(mult: int) {
+        self.multiplier = mult
+    }
+
+    fn multiply(x: int) -> int {
+        return x * self.multiplier
+    }
+}
+
+fn applyOperation(value: int, ops: fn(int) -> int) -> int {
+    return ops(value)
+}
+
+fn main() -> void {
+    let calc: Calculator = new Calculator(10)
+
+    // Get method reference
+    let multiplyBy10: fn(int) -> int = calc.multiply
+
+    // Use method as callback
+    let result: int = applyOperation(5, multiplyBy10)
+    print(result)  // Output: 50
+}
+
+// Example 4: Higher-order function (map implementation)
+fn map(items: list[int], transform: fn(int) -> int) -> list[int] {
+    let result: list[int] = []
+    for item in items {
+        let transformed: int = transform(item)
+        // Note: You'll need array append method
+        // result.append(transformed) or similar
+    }
+    return result
+}
+
+fn double(x: int) -> int {
+    return x * 2
+}
+
+fn main() -> void {
+    let numbers: list[int] = [1, 2, 3, 4, 5]
+    let doubled: list[int] = map(numbers, double)
+    // doubled is now [2, 4, 6, 8, 10]
+}
+
+// Example 5: Returning functions
+fn getOperation(opType: str) -> fn(int, int) -> int {
+    if opType == "add" {
+        return add
+    }
+    return multiply  // default
+}
+
+fn multiply(a: int, b: int) -> int {
+    return a * b
+}
+
+fn main() -> void {
+    let ops: fn(int, int) -> int = getOperation("multiply")
+    let result: int = ops(6, 7)
+    print(result)  // Output: 42
+}
+
+// Example 6: Event handling pattern
+class Button {
+    label: str
+
+    new(text: str) {
+        self.label = text
+    }
+
+    fn click() -> void {
+        print("Button clicked!")
+    }
+}
+
+class ButtonWithCallback {
+    label: str
+    onClickHandler: fn() -> void
+
+    new(text: str, handler: fn() -> void) {
+        self.label = text
+        self.onClickHandler = handler
+    }
+
+    fn click() -> void {
+        self.onClickHandler()
+    }
+}
+
+fn handleClick() -> void {
+    print("Button was clicked!")
+}
+
+fn main() -> void {
+    let btn: ButtonWithCallback = new ButtonWithCallback("Submit", handleClick)
+    btn.click()  // Output: Button was clicked!
+}
+
+// Example 7: Filter function
+fn filter(items: list[int], predicate: fn(int) -> bool) -> list[int] {
+    let result: list[int] = []
+    for item in items {
+        let shouldInclude: bool = predicate(item)
+        if shouldInclude {
+            // Add to result
+        }
+    }
+    return result
+}
+
+fn isEven(n: int) -> bool {
+    return n % 2 == 0
+}
+
+fn main() -> void {
+    let numbers: list[int] = [1, 2, 3, 4, 5, 6]
+    let evens: list[int] = filter(numbers, isEven)
+    // evens is [2, 4, 6]
+}
+

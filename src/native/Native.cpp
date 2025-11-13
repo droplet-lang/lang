@@ -147,3 +147,29 @@ void native_input(VM& vm, const uint8_t argc) {
     ObjString* str = vm.allocator.allocate_string(line);
     vm.stack_manager.push(Value::createOBJECT(str));
 }
+
+// Native append function for lists
+void native_append(VM& vm, const uint8_t argc) {
+    if (argc != 2) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        vm.stack_manager.push(Value::createNIL());
+        return;
+    }
+
+    Value item = vm.stack_manager.pop();
+    Value listVal = vm.stack_manager.pop();
+
+    if (listVal.type != ValueType::OBJECT || !listVal.current_value.object) {
+        vm.stack_manager.push(Value::createNIL());
+        return;
+    }
+
+    auto* arr = dynamic_cast<ObjArray*>(listVal.current_value.object);
+    if (!arr) {
+        vm.stack_manager.push(Value::createNIL());
+        return;
+    }
+
+    arr->value.push_back(item);
+    vm.stack_manager.push(Value::createNIL());
+}

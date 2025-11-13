@@ -1020,16 +1020,49 @@ std::shared_ptr<Type> TypeChecker::checkFieldAccess(const FieldAccessExpr *expr)
             // Check fields
             auto fieldIt = it->second.fields.find(expr->field);
             if (fieldIt != it->second.fields.end()) {
-                // Visibility checks...
+                // Check field visibility
+                auto fieldVisibility = fieldIt->second->visibility;
+
+                if (fieldVisibility == FieldDecl::Visibility::PRIVATE) {
+                    if (currentClassName != currentClass) {
+                        error("Private field can only be accessed from inside its own class.");
+                        return Type::Unknown();
+                    }
+                }
+                if (fieldVisibility == FieldDecl::Visibility::PROTECTED) {
+                    if (currentClassName != currentClass) {
+                        if (!isDescendant(currentClassName, currentClass, classes)) {
+                            error("Protected field can only be accessed from its own child class or itself.");
+                            return Type::Unknown();
+                        }
+                    }
+                }
+
                 return fieldIt->second;
             }
 
             // Check methods
             auto methodIt = it->second.methods.find(expr->field);
             if (methodIt != it->second.methods.end()) {
-                // Visibility checks...
-
                 FunctionDecl *method = methodIt->second;
+
+                // Check method visibility
+                FunctionDecl::Visibility visibility = method->visibility;
+
+                if (visibility == FunctionDecl::Visibility::PRIVATE) {
+                    if (currentClassName != currentClass) {
+                        error("Private method can only be accessed from inside its own class.");
+                        return Type::Unknown();
+                    }
+                }
+                if (visibility == FunctionDecl::Visibility::PROTECTED) {
+                    if (currentClassName != currentClass) {
+                        if (!isDescendant(currentClassName, currentClass, classes)) {
+                            error("Protected method can only be accessed from its own child class or itself.");
+                            return Type::Unknown();
+                        }
+                    }
+                }
 
                 // Return a function type for the method reference
                 auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
@@ -1157,6 +1190,42 @@ std::shared_ptr<Type> TypeChecker::checkCall(CallExpr *expr) {
                 auto it = classes.find(currentClass);
                 if (it == classes.end()) break;
 
+                // First, check if it's a field with function type
+                auto fieldIt = it->second.fields.find(fieldAccess->field);
+                if (fieldIt != it->second.fields.end()) {
+                    auto fieldType = fieldIt->second;
+                    if (fieldType->kind == Type::Kind::FUNCTION) {
+                        // This is a function-typed field being called
+
+                        // Check argument count
+                        if (expr->arguments.size() != fieldType->paramTypes.size()) {
+                            error("Function field '" + fieldAccess->field + "' expects " +
+                                  std::to_string(fieldType->paramTypes.size()) + " arguments, got " +
+                                  std::to_string(expr->arguments.size()));
+                            return Type::Unknown();
+                        }
+
+                        // Check argument types
+                        for (size_t i = 0; i < expr->arguments.size(); ++i) {
+                            auto argType = checkExpr(expr->arguments[i].get());
+                            if (!isAssignable(fieldType->paramTypes[i], argType)) {
+                                error("Argument " + std::to_string(i + 1) + " type mismatch in call to function field '"
+                                      +
+                                      fieldAccess->field + "': expected " +
+                                      fieldType->paramTypes[i]->toString() + ", got " + argType->toString());
+                                return Type::Unknown();
+                            }
+                        }
+
+                        // Mark this as an indirect call (function field)
+                        expr->isIndirectCall = true;
+
+                        return fieldType->returnType;
+                    }
+                    // If it's not a function type, fall through to error
+                }
+
+                // Then check for methods
                 auto methodIt = it->second.methods.find(fieldAccess->field);
                 if (methodIt != it->second.methods.end()) {
                     FunctionDecl *method = methodIt->second;
@@ -1210,7 +1279,7 @@ std::shared_ptr<Type> TypeChecker::checkCall(CallExpr *expr) {
                 currentClass = it->second.parentClass;
             }
 
-            error("Class '" + objectType->className + "' has no method '" + fieldAccess->field + "'");
+            error("Class '" + objectType->className + "' has no method or function field '" + fieldAccess->field + "'");
             return Type::Unknown();
         }
 
@@ -1456,6 +1525,21 @@ bool TypeChecker::isAssignable(const std::shared_ptr<Type> &target, const std::s
          target->kind == Type::Kind::LIST ||
          target->kind == Type::Kind::DICT)) {
         return true;
+    }
+
+    // Empty list (list[?]) can be assigned to any list type
+    if (target->kind == Type::Kind::LIST && source->kind == Type::Kind::LIST) {
+        if (source->typeParams[0]->kind == Type::Kind::UNKNOWN) {
+            return true; // Empty list can be assigned to any list type
+        }
+    }
+
+    // Empty dict (dict[?,?]) can be assigned to any dict type
+    if (target->kind == Type::Kind::DICT && source->kind == Type::Kind::DICT) {
+        if (source->typeParams[0]->kind == Type::Kind::UNKNOWN &&
+            source->typeParams[1]->kind == Type::Kind::UNKNOWN) {
+            return true; // Empty dict can be assigned to any dict type
+        }
     }
 
     // Exact type match

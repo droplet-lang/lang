@@ -2,12 +2,128 @@ fn add(a: int, b: int) -> int {
     return a + b
 }
 
-fn main() -> void {
-    // Assign function to variable
-    let operation: fn(int, int) -> int = add
-
-    // Call through variable
-    let result: int = operation(5, 3)
-    print("ANS", result)  // Output: 8
+fn multiply(a: int, b: int) -> int {
+    return a * b
 }
 
+fn double(x: int) -> int {
+    return x * 2
+}
+
+fn isEven(n: int) -> bool {
+    return n % 2 == 0
+}
+
+fn printItem(x: int) -> void {
+    print(x)
+}
+
+// Higher-order function: forEach
+fn forEach(items: list[int], callback: fn(int) -> void) -> void {
+    for item in items {
+        callback(item)
+    }
+}
+
+// Higher-order function: map
+fn map(items: list[int], transform: fn(int) -> int) -> list[int] {
+    let result: list[int] = []
+    for item in items {
+        let transformed: int = transform(item)
+        // Assuming list append is available
+        append(result, transformed)
+    }
+    return result
+}
+
+// Higher-order function: filter
+fn filter(items: list[int], predicate: fn(int) -> bool) -> list[int] {
+    let result: list[int] = []
+    for item in items {
+        if predicate(item) {
+            append(result, item)
+        }
+    }
+    return result
+}
+
+// Function returning another function
+fn getOperation(opType: str) -> fn(int, int) -> int {
+    if opType == "add" {
+        return add
+    }
+    return multiply
+}
+
+// Simple operation applier
+fn applyOperation(value: int, ops: fn(int) -> int) -> int {
+    return ops(value)
+}
+
+// Calculator class (method reference example)
+class Calculator {
+    multiplier: int
+
+    new(mult: int) {
+        self.multiplier = mult
+    }
+
+    fn multiply(x: int) -> int {
+        return x * self.multiplier
+    }
+}
+
+// Event handling example
+class ButtonWithCallback {
+    label: str
+    onClickHandler: fn() -> void
+
+    new(text: str, handler: fn() -> void) {
+        self.label = text
+        self.onClickHandler = handler
+    }
+
+    fn click() -> void {
+        self.onClickHandler()
+    }
+}
+
+fn handleClick() -> void {
+    print("Button was clicked!")
+}
+
+// MAIN FUNCTION — combines everything
+fn main() -> void {
+    // Example 1: Assign function to variable and call
+    let operation: fn(int, int) -> int = add
+    let sum: int = operation(5, 3)
+    print("Sum = ", sum)
+
+    // Example 2: Function as callback
+    let numbers: list[int] = [1, 2, 3, 4, 5]
+    print("Numbers:")
+    forEach(numbers, printItem)
+
+    // Example 3: Method reference
+    let calc: Calculator = new Calculator(10)
+    let multiplyBy10: fn(int) -> int = calc.multiply
+    let product: int = applyOperation(5, multiplyBy10)
+    print("Product = ",product)
+
+    // Example 4: Map (double numbers)
+    let doubled: list[int] = map(numbers, double)
+    print("Doubled: ",doubled)
+
+    // Example 5: Filter (even numbers)
+    let evens: list[int] = filter(numbers, isEven)
+    print("Even numbers: ", evens)
+
+    // Example 6: Returning functions
+    let ops: fn(int, int) -> int = getOperation("multiply")
+    let result: int = ops(6, 7)
+    print("getOperation('multiply') => ", result)
+
+    // Example 7: Event handling with callback
+    let btn: ButtonWithCallback = new ButtonWithCallback("Submit", handleClick)
+    btn.click()
+}

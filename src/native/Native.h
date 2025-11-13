@@ -25,6 +25,7 @@ void native_input(VM& vm, uint8_t argc);
 void native_int(VM& vm, uint8_t argc);
 void native_float(VM& vm, uint8_t argc);
 void native_exit(VM& vm, uint8_t argc);
+void native_append(VM& vm, uint8_t argc);
 
 // made inline just to shut up compiler warning, no special case
 inline void register_native_functions(VM& vm) {
@@ -34,6 +35,7 @@ inline void register_native_functions(VM& vm) {
     vm.register_native("str", native_str);
     vm.register_native("len", native_len);
     vm.register_native("input", native_input);
+    vm.register_native("append", native_append);
 }
 
 #endif //DROPLET_NATIVE_H

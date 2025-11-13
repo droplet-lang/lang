@@ -210,24 +210,35 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isMethod) {
 
     Token funcName = consume(TokenType::IDENTIFIER, "Expected function name");
 
+    std::cerr << "[parseFunctionDecl] Parsing function: " << funcName.lexeme << "\n";
+
     consume(TokenType::LPAREN, "Expected '(' after function name");
     std::vector<Parameter> params = parseParameters();
     consume(TokenType::RPAREN, "Expected ')' after parameters");
 
+    std::cerr << "[parseFunctionDecl] After params, current token: " << peek().lexeme
+              << " (type: " << static_cast<int>(peek().type) << ")\n";
+
     std::string returnType;
 
     if (check(TokenType::ARROW)) {
+        std::cerr << "[parseFunctionDecl] Found ARROW, parsing return type\n";
         advance();
         returnType = parseType();
+        std::cerr << "[parseFunctionDecl] Return type: " << returnType << "\n";
     } else if (check(TokenType::MINUS)) {
+        std::cerr << "[parseFunctionDecl] Found MINUS, checking for GT\n";
         // MINUS + GT case, we can handle arrow and this both
         advance();
         if (check(TokenType::GT)) {
             advance();
             returnType = parseType();
+            std::cerr << "[parseFunctionDecl] Return type: " << returnType << "\n";
         } else {
             throw error("Expected '>' after '-' in return type");
         }
+    } else {
+        std::cerr << "[parseFunctionDecl] No return type specified\n";
     }
 
     // check if there may be error
@@ -237,6 +248,8 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isMethod) {
         consume(TokenType::NOT, "Error");
         mayError = true;
     }
+
+    std::cerr << "[parseFunctionDecl] Before body, current token: " << peek().lexeme << "\n";
 
     StmtPtr body = parseBlock();
 
@@ -966,30 +979,31 @@ std::string Parser::parseType() {
         std::string funcType = "fn";
 
         // Parse parameter types
-        consume(TokenType::LPAREN, "Expected '(' after 'fn'");
+        consume(TokenType::LPAREN, "Expected '(' after 'fn' in function type");
         funcType += "(";
 
         if (!check(TokenType::RPAREN)) {
-            do {
-                funcType += parseType(); // Recursive for nested function types
-                if (check(TokenType::COMMA)) {
-                    funcType += ",";
-                }
-            } while (match({TokenType::COMMA}));
+            // Parse first parameter type
+            std::string paramType = parseType(); // Recursive for nested function types
+            funcType += paramType;
+
+            // Parse remaining parameter types
+            while (match({TokenType::COMMA})) {
+                funcType += ",";
+                paramType = parseType();
+                funcType += paramType;
+            }
         }
 
-        consume(TokenType::RPAREN, "Expected ')' after function parameters");
+        consume(TokenType::RPAREN, "Expected ')' after function type parameters");
         funcType += ")";
 
         // Parse return type
-        if (check(TokenType::ARROW)) {
-            advance();
+        if (match({TokenType::ARROW})) {
             funcType += "->";
             funcType += parseType(); // Recursive for return type
-        } else if (check(TokenType::MINUS)) {
-            advance();
-            if (check(TokenType::GT)) {
-                advance();
+        } else if (match({TokenType::MINUS})) {
+            if (match({TokenType::GT})) {
                 funcType += "->";
                 funcType += parseType();
             } else {
@@ -1043,13 +1057,18 @@ std::vector<Parameter> Parser::parseParameters() {
 
     if (!check(TokenType::RPAREN)) {
         do {
+            std::cerr << "[parseParameters] Parsing parameter, current token: " << peek().lexeme << "\n";
             Token paramName = consume(TokenType::IDENTIFIER, "Expected parameter name");
+            std::cerr << "[parseParameters] Parameter name: " << paramName.lexeme << "\n";
             consume(TokenType::COLON, "Expected ':' after parameter name");
+            std::cerr << "[parseParameters] Parsing parameter type, current token: " << peek().lexeme << "\n";
             std::string paramType = parseType();
+            std::cerr << "[parseParameters] Parameter type: " << paramType << ", current token: " << peek().lexeme << "\n";
             params.emplace_back(paramName.lexeme, paramType);
         } while (match({TokenType::COMMA}));
     }
 
+    std::cerr << "[parseParameters] Finished parsing " << params.size() << " parameters\n";
     return params;
 }
 

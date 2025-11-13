@@ -781,6 +781,18 @@ void VM::run() {
                     break;
                 }
 
+                // Check if it's a bound method
+                auto *boundMethod = dynamic_cast<ObjBoundMethod *>(callable.current_value.object);
+                if (boundMethod) {
+                    // Replace the bound method with 'self' at fnPos
+                    stack_manager.stack[fnPos] = boundMethod->receiver;
+
+                    // Now call the method - the receiver is now at the correct position
+                    // and will become the first local (self parameter)
+                    call_function_by_index(boundMethod->methodIndex, argc + 1);
+                    break;
+                }
+
                 // Check if it's a function
                 auto *fnObj = dynamic_cast<ObjFunction *>(callable.current_value.object);
                 if (fnObj) {
@@ -795,6 +807,13 @@ void VM::run() {
                     call_function_by_index(fnObj->functionIndex, argc);
                     break;
                 }
+
+                std::cerr << "CALL_INDIRECT: not a callable function or method\n";
+                // Pop arguments
+                for (int i = 0; i < argc; i++) stack_manager.pop();
+                stack_manager.pop(); // Pop the non-callable
+                stack_manager.push(Value::createNIL());
+                break;
             }
 
             default:
