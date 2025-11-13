@@ -606,6 +606,15 @@ void CodeGenerator::generateIdentifier(IdentifierExpr* expr, DBCBuilder::Functio
         return;
     }
 
+    // Check if it's a function name (function reference)
+    auto fnIt = functionIndices.find(expr->name);
+    if (fnIt != functionIndices.end()) {
+        // This is a function reference - load as value
+        fb.emit(OP_LOAD_FUNCTION);
+        fb.emitU32(fnIt->second);
+        return;
+    }
+
     // Check if it's a global or static field
     uint32_t globalIdx = getOrAddGlobal(expr->name);
     fb.loadGlobal(globalIdx);
@@ -699,6 +708,27 @@ void CodeGenerator::generateCompoundAssign(CompoundAssignExpr* expr,
 }
 
 void CodeGenerator::generateCall(CallExpr* expr, DBCBuilder::FunctionBuilder& fb) {
+    // Check if this is an indirect call (calling a function variable)
+    if (expr->isIndirectCall) {
+        // Generate the callable expression (loads function/method reference)
+        generateExpr(expr->callee.get(), fb);
+
+        // Generate arguments
+        for (auto& arg : expr->arguments) {
+            generateExpr(arg.get(), fb);
+        }
+
+        uint8_t argc = static_cast<uint8_t>(expr->arguments.size());
+
+        if (generateDebugInfo && expr->line > 0) {
+            recordDebugLocation(fb, expr->line, expr->column);
+        }
+
+        fb.emit(OP_CALL_INDIRECT);
+        fb.emitU8(argc);
+        return;
+    }
+
     // Check if it's a method call
     if (auto fieldAccess = dynamic_cast<FieldAccessExpr*>(expr->callee.get())) {
 
@@ -982,6 +1012,36 @@ void CodeGenerator::debugPrintIndices() {
 }
 
 void CodeGenerator::generateFieldAccess(FieldAccessExpr* expr, DBCBuilder::FunctionBuilder& fb) {
+    // Check if this field access is the callee of a CallExpr
+    // If so, we'll handle it in generateCall instead
+    if (expr->isMethodCall) {
+        // This will be handled by generateCall - just load object for now
+        generateExpr(expr->object.get(), fb);
+        uint32_t fieldIdx = addStringConstant(expr->field);
+        fb.getField(fieldIdx);
+        return;
+    }
+
+    // Check if this is a method reference (not a call)
+    // We need to know if expr->field is a method
+    if (expr->object->type && expr->object->type->kind == Type::Kind::OBJECT) {
+        std::string className = expr->object->type->className;
+        auto classIt = typeChecker.getClassInfo().find(className);
+
+        if (classIt != typeChecker.getClassInfo().end()) {
+            auto methodIt = classIt->second.methods.find(expr->field);
+            if (methodIt != classIt->second.methods.end()) {
+                // This is a method reference - create bound method
+                generateExpr(expr->object.get(), fb);
+                uint32_t methodNameIdx = addStringConstant(expr->field);
+                fb.emit(OP_LOAD_BOUND_METHOD);
+                fb.emitU32(methodNameIdx);
+                return;
+            }
+        }
+    }
+
+    // Regular field access
     generateExpr(expr->object.get(), fb);
     uint32_t fieldIdx = addStringConstant(expr->field);
     fb.getField(fieldIdx);

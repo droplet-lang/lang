@@ -318,3 +318,18 @@ DBCBuilder::FunctionBuilder& DBCBuilder::FunctionBuilder::isInstance(uint32_t ty
 uint32_t DBCBuilder::FunctionBuilder::currentPos() const {
     return static_cast<uint32_t>(code.size());
 }
+
+void DBCBuilder::FunctionBuilder::loadFunction(uint32_t fnIndex) {
+    emit(OP_LOAD_FUNCTION);
+    emitU32(fnIndex);
+}
+
+void DBCBuilder::FunctionBuilder::loadBoundMethod(uint32_t nameIdx) {
+    emit(OP_LOAD_BOUND_METHOD);
+    emitU32(nameIdx);
+}
+
+void DBCBuilder::FunctionBuilder::callIndirect(uint8_t argc) {
+    emit(OP_CALL_INDIRECT);
+    emitU8(argc);
+}

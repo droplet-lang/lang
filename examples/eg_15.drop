@@ -1,0 +1,13 @@
+fn add(a: int, b: int) -> int {
+    return a + b
+}
+
+fn main() -> void {
+    // Assign function to variable
+    let operation: fn(int, int) -> int = add
+
+    // Call through variable
+    let result: int = operation(5, 3)
+    print("ANS", result)  // Output: 8
+}
+

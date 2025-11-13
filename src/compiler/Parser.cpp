@@ -888,6 +888,11 @@ ExprPtr Parser::parseCall(ExprPtr callee) {
     std::vector<ExprPtr> arguments = parseArguments();
     consume(TokenType::RPAREN, "Expected ')' after arguments");
 
+    // Mark if callee is a field access (method call)
+    if (auto fieldAccess = dynamic_cast<FieldAccessExpr*>(callee.get())) {
+        fieldAccess->isMethodCall = true;
+    }
+
     auto expr = std::make_unique<CallExpr>(std::move(callee), std::move(arguments));
     expr->line = tok.line;
     expr->column = tok.column;
@@ -954,6 +959,51 @@ ExprPtr Parser::parseDictLiteral() const {
 }
 
 std::string Parser::parseType() {
+    // Check if this is a function type: fn(params) -> returnType
+    if (check(TokenType::KW_FN)) {
+        advance(); // consume 'fn'
+
+        std::string funcType = "fn";
+
+        // Parse parameter types
+        consume(TokenType::LPAREN, "Expected '(' after 'fn'");
+        funcType += "(";
+
+        if (!check(TokenType::RPAREN)) {
+            do {
+                funcType += parseType(); // Recursive for nested function types
+                if (check(TokenType::COMMA)) {
+                    funcType += ",";
+                }
+            } while (match({TokenType::COMMA}));
+        }
+
+        consume(TokenType::RPAREN, "Expected ')' after function parameters");
+        funcType += ")";
+
+        // Parse return type
+        if (check(TokenType::ARROW)) {
+            advance();
+            funcType += "->";
+            funcType += parseType(); // Recursive for return type
+        } else if (check(TokenType::MINUS)) {
+            advance();
+            if (check(TokenType::GT)) {
+                advance();
+                funcType += "->";
+                funcType += parseType();
+            } else {
+                throw error("Expected '>' after '-' in function type");
+            }
+        } else {
+            // No return type means void
+            funcType += "->void";
+        }
+
+        return funcType;
+    }
+
+    // Regular type (existing code)
     const Token typeToken = consume(TokenType::IDENTIFIER, "Expected type name");
     std::string type = typeToken.lexeme;
 

@@ -201,7 +201,7 @@ void TypeChecker::registerBuiltinTypes() {
 }
 
 void TypeChecker::registerBuiltins() const {
-    for (const auto &b : ALL_NATIVE_FUNCTIONS) {
+    for (const auto &b: ALL_NATIVE_FUNCTIONS) {
         auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
         funcType->returnType = b.second.returnType;
         funcType->paramTypes = b.second.paramTypes;
@@ -403,6 +403,12 @@ std::shared_ptr<Type> TypeChecker::resolveType(const std::string &typeStr) {
         type->isChecked = false;
         return type;
     }
+
+    // NEW: Check if it's a function type
+    if (typeStr.substr(0, 2) == "fn") {
+        return parseFunctionType(typeStr);
+    }
+
     return resolveTypeWithGenerics(typeStr, {});
 }
 
@@ -448,6 +454,11 @@ bool TypeChecker::blockDefinitelyReturns(const Stmt *stmt) {
 
 std::shared_ptr<Type> TypeChecker::resolveTypeWithGenerics(const std::string &typeStr,
                                                            const std::vector<std::string> &typeParams) {
+    // NEW: Check if it's a function type
+    if (typeStr.substr(0, 2) == "fn") {
+        return parseFunctionType(typeStr);
+    }
+
     // Handle generic type parameters
     if (std::ranges::find(typeParams, typeStr) != typeParams.end()) {
         return std::make_shared<Type>(Type::Kind::GENERIC, typeStr);
@@ -781,8 +792,19 @@ std::shared_ptr<Type> TypeChecker::checkLiteral(const LiteralExpr *expr) {
 std::shared_ptr<Type> TypeChecker::checkIdentifier(const IdentifierExpr *expr) {
     Symbol *symbol = currentScope->resolve(expr->name);
     if (!symbol) {
+        // Check if it's a function name (not in symbol table yet)
+        // This happens when referencing a function as a value
+
+        // Check global functions
+        if (auto globalSym = globalScope->resolve(expr->name)) {
+            if (globalSym->kind == Symbol::Kind::FUNCTION) {
+                return globalSym->type; // Return the function type
+            }
+        }
+
         error("Undefined variable '" + expr->name + "'");
     }
+
     enforceErrorCheck(expr->name, symbol->type);
     return symbol->type;
 }
@@ -984,74 +1006,97 @@ std::shared_ptr<Type> TypeChecker::checkCompoundAssign(const CompoundAssignExpr 
 std::shared_ptr<Type> TypeChecker::checkFieldAccess(const FieldAccessExpr *expr) {
     auto objectType = checkExpr(expr->object.get());
 
-    // Can't access fields on unchecked error types
     if (auto id = dynamic_cast<IdentifierExpr *>(expr->object.get())) {
         enforceErrorCheck(id->name, objectType);
     }
 
-    // this will also respect the access modifier of field
-    // pub -> everywhere
-    // prot -> same class + inh class
-    // priv -> only same class
     if (objectType->kind == Type::Kind::OBJECT) {
-        // Start searching from the object's class
         std::string currentClass = objectType->className;
 
-        // Search through class hierarchy
         while (!currentClass.empty()) {
             auto it = classes.find(currentClass);
-            if (it == classes.end()) {
-                break;
-            }
+            if (it == classes.end()) break;
 
-            // Check fields in current class
+            // Check fields
             auto fieldIt = it->second.fields.find(expr->field);
             if (fieldIt != it->second.fields.end()) {
-                // check visibility and throw from here?
-                if (fieldIt->second->visibility == FieldDecl::Visibility::PRIVATE && currentClassName != currentClass) {
-                    // only this class
-                    error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
-                } else if (fieldIt->second->visibility == FieldDecl::Visibility::PROTECTED) {
-                    // this and children
-                    if (!isDescendant(currentClassName, currentClass, classes)) {
-                        error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
-                    }
-                }
-
+                // Visibility checks...
                 return fieldIt->second;
             }
 
-            // Check methods in current class
+            // Check methods
             auto methodIt = it->second.methods.find(expr->field);
             if (methodIt != it->second.methods.end()) {
-                // check visibility and throw from here?
-                if (methodIt->second->visibility == FunctionDecl::Visibility::PRIVATE && currentClassName !=
-                    currentClass) {
-                    // only this class
-                    error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
-                } else if (methodIt->second->visibility == FunctionDecl::Visibility::PROTECTED) {
-                    // this and children
-                    if (!isDescendant(currentClassName, currentClass, classes)) {
-                        error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
-                    }
+                // Visibility checks...
+
+                FunctionDecl *method = methodIt->second;
+
+                // Return a function type for the method reference
+                auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
+
+                // Method parameters (excluding 'self')
+                for (const auto &param: method->params) {
+                    funcType->paramTypes.push_back(resolveType(param.type));
                 }
 
-                // Return function type for method reference
-                auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
+                funcType->returnType = method->returnType.empty()
+                                           ? Type::Void()
+                                           : resolveType(method->returnType);
+
                 return funcType;
             }
 
             currentClass = it->second.parentClass;
         }
 
-        // Not found in any class in the hierarchy
         error("Class '" + objectType->className + "' has no field or method '" + expr->field + "'");
     }
 
     return Type::Unknown();
 }
 
-std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr *expr) {
+std::shared_ptr<Type> TypeChecker::checkCall(CallExpr *expr) {
+    // ==========================================
+    // NEW: Check for indirect call FIRST
+    // ==========================================
+    if (auto id = dynamic_cast<IdentifierExpr *>(expr->callee.get())) {
+        // Check if this identifier is a LOCAL variable with function type
+        // (not a global function definition)
+        if (auto symbol = currentScope->resolve(id->name)) {
+            // Only treat as indirect call if it's a VARIABLE or PARAMETER, not a FUNCTION declaration
+            if (symbol->type->kind == Type::Kind::FUNCTION &&
+                (symbol->kind == Symbol::Kind::VARIABLE || symbol->kind == Symbol::Kind::PARAMETER)) {
+                // This is an indirect call through a function variable
+
+                // Check argument count
+                if (expr->arguments.size() != symbol->type->paramTypes.size()) {
+                    error("Function variable '" + id->name + "' expects " +
+                          std::to_string(symbol->type->paramTypes.size()) +
+                          " arguments, got " +
+                          std::to_string(expr->arguments.size()));
+                    return Type::Unknown();
+                }
+
+                // Check argument types
+                for (size_t i = 0; i < expr->arguments.size(); ++i) {
+                    auto argType = checkExpr(expr->arguments[i].get());
+                    if (!isAssignable(symbol->type->paramTypes[i], argType)) {
+                        error("Argument " + std::to_string(i + 1) +
+                              " type mismatch in indirect call: expected " +
+                              symbol->type->paramTypes[i]->toString() +
+                              ", got " + argType->toString());
+                        return Type::Unknown();
+                    }
+                }
+
+                // Mark this as an indirect call (for code generation)
+                expr->isIndirectCall = true;
+
+                return symbol->type->returnType;
+            }
+        }
+    }
+
     // If callee is a field access like X.foo(...)
     if (auto fieldAccess = dynamic_cast<FieldAccessExpr *>(expr->callee.get())) {
         // --- 1. STATIC METHOD CALL: ClassName.methodName() ---
@@ -1124,10 +1169,7 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr *expr) {
                     }
 
                     for (size_t i = 0; i < expr->arguments.size(); ++i) {
-                        // args are passed value
                         auto argType = checkExpr(expr->arguments[i].get());
-
-                        // params are asked vars
                         const auto paramTypeStr = method->params[i].type;
                         auto paramType = resolveType(paramTypeStr);
 
@@ -1141,14 +1183,12 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr *expr) {
                     FunctionDecl::Visibility visibility = method->visibility;
 
                     if (visibility == FunctionDecl::Visibility::PRIVATE) {
-                        // can be called from method of same class
                         if (currentClassName != currentClass) {
                             error("Private method can only be called from inside its own class.");
                             return Type::Unknown();
                         }
                     }
                     if (visibility == FunctionDecl::Visibility::PROTECTED) {
-                        // can be called from the method of class which is inh of this class
                         if (currentClassName != currentClass) {
                             if (!isDescendant(currentClassName, currentClass, classes)) {
                                 error("Protected method can only be called from its own child class or itself.");
@@ -1178,8 +1218,10 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr *expr) {
         return Type::Unknown();
     }
 
-    // --- 3. SIMPLE IDENTIFIER CALL (e.g., foo(...)) ---
-    else if (auto id = dynamic_cast<IdentifierExpr *>(expr->callee.get())) {
+    // ==========================================
+    // Existing code: Direct function calls and constructors
+    // ==========================================
+    if (auto id = dynamic_cast<IdentifierExpr *>(expr->callee.get())) {
         // (a) CONSTRUCTOR CALL: ClassName(...)
         auto classIt = classes.find(id->name);
         if (classIt != classes.end()) {
@@ -1188,9 +1230,7 @@ std::shared_ptr<Type> TypeChecker::checkCall(const CallExpr *expr) {
 
         // (b) BUILT-IN FUNCTIONS
         auto it = ALL_NATIVE_FUNCTIONS.find(id->name);
-        if (
-            it != ALL_NATIVE_FUNCTIONS.end()
-        ) {
+        if (it != ALL_NATIVE_FUNCTIONS.end()) {
             for (auto &arg: expr->arguments) checkExpr(arg.get());
             return Type::Void();
         }
@@ -1433,6 +1473,11 @@ bool TypeChecker::isAssignable(const std::shared_ptr<Type> &target, const std::s
         return isSubclass(source->className, target->className);
     }
 
+    // Function type assignment - must have exact signature match
+    if (target->kind == Type::Kind::FUNCTION && source->kind == Type::Kind::FUNCTION) {
+        return signaturesMatch(target, source);
+    }
+
     return false;
 }
 
@@ -1452,4 +1497,88 @@ std::shared_ptr<Type> TypeChecker::promoteNumeric(const std::shared_ptr<Type> &a
         return Type::Float();
     }
     return Type::Int();
+}
+
+bool TypeChecker::signaturesMatch(const std::shared_ptr<Type> &a, const std::shared_ptr<Type> &b) {
+    if (a->kind != Type::Kind::FUNCTION || b->kind != Type::Kind::FUNCTION) {
+        return false;
+    }
+
+    // Check parameter count
+    if (a->paramTypes.size() != b->paramTypes.size()) {
+        return false;
+    }
+
+    // Check each parameter type
+    for (size_t i = 0; i < a->paramTypes.size(); ++i) {
+        if (!a->paramTypes[i]->equals(b->paramTypes[i])) {
+            return false;
+        }
+    }
+
+    // Check return type
+    if (!a->returnType->equals(b->returnType)) {
+        return false;
+    }
+
+    return true;
+}
+
+std::shared_ptr<Type> TypeChecker::parseFunctionType(const std::string &typeStr) {
+    // Expected format: fn(type1,type2)->returnType
+    // or: fn()->returnType
+    // or: fn(type1,type2)->void
+
+    if (typeStr.substr(0, 2) != "fn") {
+        return nullptr; // Not a function type
+    }
+
+    size_t parenStart = typeStr.find('(');
+    size_t parenEnd = typeStr.find(')');
+
+    if (parenStart == std::string::npos || parenEnd == std::string::npos) {
+        error("Malformed function type: " + typeStr);
+        return Type::Unknown();
+    }
+
+    // Extract parameter types
+    std::string paramsStr = typeStr.substr(parenStart + 1, parenEnd - parenStart - 1);
+    std::vector<std::shared_ptr<Type> > paramTypes;
+
+    if (!paramsStr.empty()) {
+        // Split by comma (simple version - doesn't handle nested commas)
+        size_t start = 0;
+        size_t end = paramsStr.find(',');
+
+        while (end != std::string::npos) {
+            std::string paramType = paramsStr.substr(start, end - start);
+            paramTypes.push_back(resolveType(paramType));
+            start = end + 1;
+            end = paramsStr.find(',', start);
+        }
+
+        // Last parameter
+        std::string lastParam = paramsStr.substr(start);
+        if (!lastParam.empty()) {
+            paramTypes.push_back(resolveType(lastParam));
+        }
+    }
+
+    // Extract return type
+    size_t arrowPos = typeStr.find("->");
+    std::shared_ptr<Type> returnType;
+
+    if (arrowPos != std::string::npos) {
+        std::string returnTypeStr = typeStr.substr(arrowPos + 2);
+        returnType = resolveType(returnTypeStr);
+    } else {
+        returnType = Type::Void();
+    }
+
+    // Create function type
+    auto funcType = std::make_shared<Type>(Type::Kind::FUNCTION);
+    funcType->paramTypes = paramTypes;
+    funcType->returnType = returnType;
+
+    return funcType;
 }

@@ -108,4 +108,37 @@ struct ObjInstance final : Object {
     }
 };
 
+class ObjFunction final : public Object {
+public:
+    uint32_t functionIndex;
+
+    explicit ObjFunction(uint32_t idx)
+        : functionIndex(idx) {}
+
+    void markChildren(const MarkerFunction fn) override {
+        (void) fn;
+    }
+
+    [[nodiscard]] std::string get_representor() const override {
+        return "<function@" + std::to_string(functionIndex) + ">";
+    }
+};
+
+// ObjBoundMethod - Reference to an object's method
+class ObjBoundMethod : public Object {
+public:
+    Value receiver;        // The object (self)
+    uint32_t methodIndex;  // Which method to call
+
+    ObjBoundMethod(Value recv, uint32_t idx): receiver(recv), methodIndex(idx) {}
+
+    void markChildren(const MarkerFunction fn) override {
+        fn(receiver);
+    }
+
+    [[nodiscard]] std::string get_representor() const override {
+        return "<bound-method@" + std::to_string(methodIndex) + ">";
+    }
+};
+
 #endif //DROPLET_OBJECT_H

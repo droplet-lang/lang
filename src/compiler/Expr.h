@@ -94,6 +94,7 @@ struct CompoundAssignExpr final : Expr {
 struct CallExpr final : Expr {
     ExprPtr callee;  // Can be IdentifierExpr or FieldAccessExpr
     std::vector<ExprPtr> arguments;
+    bool isIndirectCall = false;
 
     CallExpr(ExprPtr c, std::vector<ExprPtr> args): callee(std::move(c)), arguments(std::move(args)) {}
 };
@@ -101,6 +102,7 @@ struct CallExpr final : Expr {
 struct FieldAccessExpr final : Expr {
     ExprPtr object;
     std::string field;
+    bool isMethodCall = false;
 
     FieldAccessExpr(ExprPtr obj, std::string f): object(std::move(obj)), field(std::move(f)) {}
 };

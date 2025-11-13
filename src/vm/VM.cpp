@@ -63,10 +63,22 @@ void VM::call_function_by_index(const uint32_t fnIndex, size_t argCount) {
     }
 
     Function *f = functions[fnIndex].get();
+
+    // Calculate localStartsAt BEFORE pushing additional locals
+    // The arguments are already on the stack at positions [sp - argCount .. sp - 1]
+    uint32_t localStartsAt = stack_manager.sp - argCount;
+
+    // Push NIL for additional local variable slots
+    uint8_t additionalLocals = f->localCount > argCount ? f->localCount - argCount : 0;
+    for (uint8_t i = 0; i < additionalLocals; i++) {
+        stack_manager.push(Value::createNIL());
+    }
+
     CallFrame frame;
     frame.function = f;
     frame.ip = 0;
-    frame.localStartsAt = stack_manager.sp;
+    frame.localStartsAt = localStartsAt; // Use the calculated value
+
     call_frames.push_back(frame);
 }
 
@@ -84,7 +96,7 @@ void VM::run() {
             debugger->pause();
             debugger->debugLoop();
             if (!debugger->isRunning) {
-                return;  // User quit debugger
+                return; // User quit debugger
             }
         }
 
@@ -373,7 +385,7 @@ void VM::run() {
 
                 auto *libNameObj = dynamic_cast<ObjString *>(global_constants[libIdx].current_value.object);
                 auto *symNameObj = dynamic_cast<ObjString *>(global_constants[symIdx].current_value.object);
-                auto* sigObj = dynamic_cast<ObjString*>(global_constants[sigIdx].current_value.object);
+                auto *sigObj = dynamic_cast<ObjString *>(global_constants[sigIdx].current_value.object);
 
                 if (!libNameObj || !symNameObj || !sigObj) {
                     std::cerr << "CALL_FFI: Invalid string objects\n";
@@ -682,6 +694,107 @@ void VM::run() {
                 ObjMap *map = allocator.allocate_map();
                 stack_manager.push(Value::createOBJECT(map));
                 break;
+            }
+
+            // callback
+            case OP_LOAD_FUNCTION: {
+                uint32_t fnIdx = frame.read_u32();
+
+                if (fnIdx >= functions.size()) {
+                    std::cerr << "LOAD_FUNCTION: invalid function index " << fnIdx << "\n";
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                ObjFunction *fnObj = allocator.allocate_function(fnIdx);
+                stack_manager.push(Value::createOBJECT(fnObj));
+                break;
+            }
+
+            case OP_LOAD_BOUND_METHOD: {
+                uint32_t nameIdx = frame.read_u32();
+                Value objVal = stack_manager.pop();
+
+                if (objVal.type != ValueType::OBJECT || !objVal.current_value.object) {
+                    std::cerr << "LOAD_BOUND_METHOD: not an object\n";
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                if (nameIdx >= global_constants.size()) {
+                    std::cerr << "LOAD_BOUND_METHOD: invalid name index\n";
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                auto *methodName = dynamic_cast<ObjString *>(global_constants[nameIdx].current_value.object);
+                if (!methodName) {
+                    std::cerr << "LOAD_BOUND_METHOD: name is not string\n";
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                // Get the object's class
+                auto *instance = dynamic_cast<ObjInstance *>(objVal.current_value.object);
+                if (!instance) {
+                    std::cerr << "LOAD_BOUND_METHOD: not an instance\n";
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                // Find the method index by mangled name
+                std::string mangledName = instance->className + "$$" + methodName->value;
+                auto it = function_index_by_name.find(mangledName);
+                if (it == function_index_by_name.end()) {
+                    std::cerr << "LOAD_BOUND_METHOD: method not found: " << mangledName << "\n";
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                uint32_t methodIdx = it->second;
+                ObjBoundMethod *boundMethod = allocator.allocate_bound_method(objVal, methodIdx);
+                stack_manager.push(Value::createOBJECT(boundMethod));
+                break;
+            }
+
+            case OP_CALL_INDIRECT: {
+                uint8_t argc = frame.read_u8();
+
+                // The callable is argc positions down from the top
+                if (stack_manager.sp < argc + 1) {
+                    std::cerr << "CALL_INDIRECT: stack underflow\n";
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                // Stack layout: [..., fn_obj, arg1, arg2, ..., argN] <- sp
+                // Position of fn_obj: sp - argc - 1
+                uint32_t fnPos = stack_manager.sp - argc - 1;
+                Value callable = stack_manager.stack[fnPos];
+
+                if (callable.type != ValueType::OBJECT || !callable.current_value.object) {
+                    std::cerr << "CALL_INDIRECT: not a callable\n";
+                    // Pop arguments
+                    for (int i = 0; i < argc; i++) stack_manager.pop();
+                    stack_manager.pop(); // Pop the non-callable
+                    stack_manager.push(Value::createNIL());
+                    break;
+                }
+
+                // Check if it's a function
+                auto *fnObj = dynamic_cast<ObjFunction *>(callable.current_value.object);
+                if (fnObj) {
+                    // Remove fn_obj by shifting arguments down
+                    // [..., fn_obj, arg1, arg2] -> [..., arg1, arg2]
+                    for (uint32_t i = fnPos; i < stack_manager.sp - 1; i++) {
+                        stack_manager.stack[i] = stack_manager.stack[i + 1];
+                    }
+                    stack_manager.sp--;
+
+                    // Now call the function - localStartsAt will be sp - argc
+                    call_function_by_index(fnObj->functionIndex, argc);
+                    break;
+                }
             }
 
             default:

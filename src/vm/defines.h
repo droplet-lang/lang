@@ -92,7 +92,12 @@ enum Op: uint8_t {
 
     // Globals
     OP_LOAD_GLOBAL = 0xA0,
-    OP_STORE_GLOBAL = 0xA1
+    OP_STORE_GLOBAL = 0xA1,
+
+    // callback
+    OP_LOAD_FUNCTION = 0xB0,
+    OP_LOAD_BOUND_METHOD = 0xB1,
+    OP_CALL_INDIRECT = 0xB2,
 };
 
 #endif //DROPLET_DEFINES_H

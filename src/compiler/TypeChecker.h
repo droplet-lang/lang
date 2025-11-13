@@ -90,10 +90,18 @@ struct Type {
                        (typeParams.size() < 2 ? "?,?" : typeParams[0]->toString() + "," + typeParams[1]->toString()) + "]" + append;
             case Kind::OBJECT:
                 return className + append;
-            case Kind::FUNCTION:
-                return "fn(...)" + append;
             case Kind::GENERIC:
                 return className + append;  // Generic type parameter name
+            case Kind::FUNCTION: {
+                std::string result = "fn(";
+                for (size_t i = 0; i < paramTypes.size(); ++i) {
+                    if (i > 0) result += ",";
+                    result += paramTypes[i]->toString();
+                }
+                result += ")->";
+                result += returnType ? returnType->toString() : "void";
+                return result;
+            }
             case Kind::UNKNOWN:
                 return "?" + append;
         }
@@ -119,6 +127,25 @@ struct Type {
                 return typeParams.size() >= 2 && other->typeParams.size() >= 2 &&
                        typeParams[0]->equals(other->typeParams[0]) &&
                        typeParams[1]->equals(other->typeParams[1]);
+            case Kind::FUNCTION: {
+                // Check parameter count
+                if (paramTypes.size() != other->paramTypes.size()) {
+                    return false;
+                }
+
+                // Check each parameter type
+                for (size_t i = 0; i < paramTypes.size(); ++i) {
+                    if (!paramTypes[i]->equals(other->paramTypes[i])) {
+                        return false;
+                    }
+                }
+
+                // Check return type
+                if (!returnType || !other->returnType) {
+                    return !returnType && !other->returnType;
+                }
+                return returnType->equals(other->returnType);
+            }
             default:
                 return true;
         }
@@ -267,7 +294,7 @@ private:
     std::shared_ptr<Type> checkUnary(const UnaryExpr* expr);
     std::shared_ptr<Type> checkAssign(const AssignExpr* expr);
     std::shared_ptr<Type> checkCompoundAssign(const CompoundAssignExpr* expr);
-    std::shared_ptr<Type> checkCall(const CallExpr* expr);
+    std::shared_ptr<Type> checkCall(CallExpr* expr);
 
     static bool isDescendant(const std::string &childName, const std::string &potentialAncestor, const std::unordered_map<std::string, ClassInfo> &classes);
 
@@ -284,6 +311,10 @@ private:
     bool isSubclass(const std::string& child, const std::string& parent);
 
     static std::shared_ptr<Type> promoteNumeric(const std::shared_ptr<Type>& a, const std::shared_ptr<Type>& b);
+
+    bool signaturesMatch(const std::shared_ptr<Type> &a, const std::shared_ptr<Type> &b);
+
+    std::shared_ptr<Type> parseFunctionType(const std::string &typeStr);
 
     // Scope management
     void enterScope() {

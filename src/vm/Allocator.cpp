@@ -66,3 +66,15 @@ void Allocator::perform_gc(StackManager &stack, std::unordered_map<std::string, 
         // nothing else
     });
 }
+
+ObjFunction* Allocator::allocate_function(const uint32_t functionIndex) {
+    auto* fn = new ObjFunction(functionIndex);
+    gc.allocNewObject(fn);
+    return fn;
+}
+
+ObjBoundMethod* Allocator::allocate_bound_method(const Value receiver, const uint32_t methodIndex) {
+    auto* method = new ObjBoundMethod(receiver, methodIndex);
+    gc.allocNewObject(method);
+    return method;
+}

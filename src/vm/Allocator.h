@@ -27,6 +27,8 @@ struct Allocator {
     ObjArray *allocate_array();
     ObjMap *allocate_map();
     ObjInstance *allocate_instance(const std::string &className);
+    ObjFunction* allocate_function(uint32_t functionIndex);
+    ObjBoundMethod* allocate_bound_method(Value receiver, uint32_t methodIndex);
 
     // stack root walker for GC
     void root_walker(const RWComplexGCFunction &walker);

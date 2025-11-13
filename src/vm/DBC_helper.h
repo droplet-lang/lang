@@ -71,6 +71,12 @@ public:
 
         // Get current code position (useful for jump targets)
         uint32_t currentPos() const;
+
+        void loadFunction(uint32_t fnIndex);
+
+        void loadBoundMethod(uint32_t nameIdx);
+
+        void callIndirect(uint8_t argc);
     };
 
     FunctionBuilder& addFunction(const std::string& name);
