@@ -23,6 +23,7 @@
 #include "Object.h"
 #include "VM.h"
 
+#if !defined(__ANDROID__)
 FFISignature parseSignature(const std::string& sig) {
     FFISignature parsed;
     size_t arrow = sig.find("->");
@@ -70,9 +71,11 @@ ffi_type* FFIHelper::get_ffi_type(const char t) {
         default: return &ffi_type_void;
     }
 }
-
+#endif
 
 Value FFIHelper::do_ffi_call(const std::string &sig, std::vector<Value> &args, VM *vm, void* fn_ptr) {
+#if !defined(__ANDROID__)
+
     FFISignature s = parseSignature(sig);
 
     // Storage for libffi
@@ -147,5 +150,11 @@ Value FFIHelper::do_ffi_call(const std::string &sig, std::vector<Value> &args, V
         }
         default: return Value::createNIL();
     }
+#endif
+#if defined(__ANDROID__)
+    // Currently lets disable the FFI feature completely on android
+    // until we find out the best way for a workaround
+    return Value::createNIL();
+#endif
 }
 

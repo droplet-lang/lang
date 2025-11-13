@@ -32,11 +32,13 @@ struct FFISignature {
 struct FFIHelper {
     std::unordered_map<std::string, void*> libs;
 
+#if !defined(__ANDROID__)
     void* load_lib(const std::string &path);
 
     static void* find_symbol(void* lib, const std::string &symbol);
 
     static ffi_type *get_ffi_type(char t);
+#endif
 
     static Value do_ffi_call(const std::string &sig, std::vector<Value> &args, VM *vm, void* fn_ptr);
 };

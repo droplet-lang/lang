@@ -2,55 +2,35 @@ cmake_minimum_required(VERSION 4.0)
 project(droplet)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Include directories
 include_directories("D:/msys64/mingw64/include")
+
+# Link directories
 link_directories("D:/msys64/mingw64/lib")
 
-add_executable(droplet main.cpp
-        src/vm/VM.cpp
-        src/vm/VM.h
-        src/vm/Value.cpp
-        src/vm/Value.h
-        src/vm/Object.h
-        src/vm/GC.cpp
-        src/vm/GC.h
-        src/vm/defines.h
-        src/external/dlfcn/dlfcn.h
-        src/external/dlfcn/dlfcn.c
-        src/tests/GC_test.h
-        src/tests/Value_obj_test.h
-        src/vm/DBC_helper.cpp
-        src/vm/DBC_helper.h
-        src/vm/FFIHelper.cpp
-        src/vm/FFIHelper.h
-        src/vm/StackManager.cpp
-        src/vm/StackManager.h
-        src/vm/CallFrame.cpp
-        src/vm/CallFrame.h
-        src/vm/Loader.cpp
-        src/vm/Loader.h
-        src/vm/Allocator.cpp
-        src/vm/Allocator.h
-        src/vm/Function.h
-        src/compiler/Lexer.cpp
-        src/compiler/Lexer.h
-        src/compiler/Lexer.cpp
-        src/tests/Lexer_test.h
-        src/compiler/Expr.h
-        src/compiler/Stmt.h
-        src/compiler/Program.h
-        src/compiler/Parser.cpp
-        src/compiler/Parser.h
-        src/compiler/CodeGenerator.cpp
-        src/compiler/CodeGenerator.h
-        src/compiler/ModuleLoader.cpp
-        src/compiler/ModuleLoader.h
-        src/compiler/TypeChecker.cpp
-        src/compiler/TypeChecker.h
-        src/native/Native.cpp
-        src/native/Native.h
-        src/debugger/Debugger.cpp
-        src/debugger/Debugger.h
+# Collect source files recursively
+file(GLOB_RECURSE DROPLET_SOURCES
+        src/vm/*.cpp
+        src/compiler/*.cpp
+        src/native/*.cpp
+        src/debugger/*.cpp
+        src/external/dlfcn/*.c
+        main.cpp
 )
 
+file(GLOB_RECURSE DROPLET_HEADERS
+        src/vm/*.h
+        src/compiler/*.h
+        src/native/*.h
+        src/debugger/*.h
+        src/external/dlfcn/*.h
+        src/tests/*.h
+)
+
+# Create executable
+add_executable(droplet ${DROPLET_SOURCES} ${DROPLET_HEADERS})
+
+# Link libraries
 target_link_libraries(droplet PRIVATE ffi)

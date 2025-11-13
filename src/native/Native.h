@@ -16,6 +16,7 @@
 #define DROPLET_NATIVE_H
 #include "../vm/VM.h"
 
+// PLATFORM INDEPENDENT NATIVE FUNCTIONS
 void native_len(VM& vm, uint8_t argc);
 void native_print(VM& vm, uint8_t argc);
 void native_println(VM& vm, uint8_t argc);

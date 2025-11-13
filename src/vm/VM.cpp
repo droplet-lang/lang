@@ -383,12 +383,15 @@ void VM::run() {
                     break;
                 }
 
+#if !defined(__ANDROID__)
                 void *h = ffi.load_lib(libNameObj->value);
                 if (!h) {
+#endif
                     for (int i = 0; i < argc; i++)
                         stack_manager.pop();
                     stack_manager.push(Value::createNIL());
                     break;
+#if !defined(__ANDROID__)
                 }
 
                 void *sym = FFIHelper::find_symbol(h, symNameObj->value);
@@ -409,6 +412,7 @@ void VM::run() {
                 Value ffi_response = FFIHelper::do_ffi_call(sigObj->value, args, this, sym);
                 stack_manager.push(ffi_response);
                 break;
+#endif
             }
             case OP_NEW_OBJECT: {
                 uint32_t nameIdx = frame.read_u32();

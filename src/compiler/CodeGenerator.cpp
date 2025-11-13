@@ -19,6 +19,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "../native/NativeRegisteries.h"
+
 
 bool CodeGenerator::generate(const Program& program, const std::string& outputPath) {
     // Phase 2: Generate all class constructors and methods
@@ -1097,14 +1099,8 @@ Op CodeGenerator::getBinaryOp(BinaryExpr::Op op) {
 
 bool CodeGenerator::isBuiltinFunction(const std::string& name) {
     // List of built-in functions that should use CALL_NATIVE
-    static const std::vector<std::string> builtins = {
-        "println", "print", "input", "str", "int", "float", "exit",
-        "len", "push", "pop", "get", "set", "has", "del",
-        "keys", "values", "substr", "charAt", "concat"
-    };
-
-    for (const auto& builtin : builtins) {
-        if (builtin == name) {
+    for (const auto& builtin : ALL_NATIVE_FUNCTIONS) {
+        if (builtin.second.name == name) {
             return true;
         }
     }
