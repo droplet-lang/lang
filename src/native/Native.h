@@ -34,7 +34,6 @@ inline void register_native_functions(VM& vm) {
     vm.register_native("str", native_str);
     vm.register_native("len", native_len);
     vm.register_native("input", native_input);
-    vm.register_native("int", native_int);
 }
 
 #endif //DROPLET_NATIVE_H
