@@ -14,6 +14,7 @@
  */
 #ifndef DROPLET_VM_H
 #define DROPLET_VM_H
+#include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -36,21 +37,23 @@ struct VM {
     StackManager stack_manager;
     FFIHelper ffi;
     Allocator allocator;
-    Debugger* debugger = nullptr;
+    Debugger *debugger = nullptr;
     bool debugMode = false;
 
-    void setDebugger(Debugger* dbg) {
+    void setDebugger(Debugger *dbg) {
         debugger = dbg;
         debugMode = (dbg != nullptr);
     }
 
     // Native registry
     std::unordered_map<std::string, NativeFunction> native_functions_registry;
+
     void register_native(const std::string &name, NativeFunction fn);
 
     // global table
     std::unordered_map<std::string, Value> globals;
     std::vector<Value> global_constants;
+
     uint32_t add_global_string_constant(const std::string &s);
 
     // frames
@@ -62,44 +65,60 @@ struct VM {
 
 
     // functions (loaded module)
-    std::vector<std::unique_ptr<Function>> functions;
+    std::vector<std::unique_ptr<Function> > functions;
     std::unordered_map<std::string, uint32_t> function_index_by_name;
 
     uint32_t get_function_index(const std::string &name);
+
     void call_function_by_index(uint32_t fnIndex, size_t argCount);
 
 
     // This is going to be huge rn, won-t refactor for clarity unless finalized
     void run();
 
-       bool execute_callback(Value callback, const std::vector<Value>& args = {}) {
+    bool execute_callback(Value callback, const std::vector<Value> &args = {}) {
         // Determine what kind of callable this is
         int functionIndex = -1;
         Value receiver;
         bool hasReceiver = false;
 
+        std::cerr << "execute_callback: callback.type = " << static_cast<int>(callback.type) << "\n";
+
         if (callback.type == ValueType::OBJECT && callback.current_value.object) {
+            std::cerr << "execute_callback: callback is an object\n";
+
             // Check if it's a bound method
-            auto* boundMethod = dynamic_cast<ObjBoundMethod*>(callback.current_value.object);
+            auto *boundMethod = dynamic_cast<ObjBoundMethod *>(callback.current_value.object);
             if (boundMethod) {
+                std::cerr << "execute_callback: Found BoundMethod, methodIndex = " << boundMethod->methodIndex << "\n";
                 functionIndex = boundMethod->methodIndex;
                 receiver = boundMethod->receiver;
                 hasReceiver = true;
             } else {
+                std::cerr << "execute_callback: Not a BoundMethod, checking Function\n";
                 // Check if it's a function object
-                auto* fnObj = dynamic_cast<ObjFunction*>(callback.current_value.object);
+                auto *fnObj = dynamic_cast<ObjFunction *>(callback.current_value.object);
                 if (fnObj) {
+                    std::cerr << "execute_callback: Found Function, functionIndex = " << fnObj->functionIndex << "\n";
                     functionIndex = fnObj->functionIndex;
                     hasReceiver = false;
+                } else {
+                    std::cerr << "execute_callback: Not a Function either!\n";
                 }
             }
+        } else {
+            std::cerr << "execute_callback: callback is NOT an object or object is null\n";
         }
 
+        std::cerr << "execute_callback: functionIndex = " << functionIndex << ", functions.size() = " << functions.
+                size() << "\n";
+
         if (functionIndex < 0 || functionIndex >= static_cast<int>(functions.size())) {
+            std::cerr << "execute_callback: Invalid function index!\n";
             return false;
         }
 
-        Function* targetFunction = functions[functionIndex].get();
+        Function *targetFunction = functions[functionIndex].get();
         if (!targetFunction) {
             return false;
         }
@@ -110,7 +129,7 @@ struct VM {
         }
 
         // Push all arguments
-        for (const auto& arg : args) {
+        for (const auto &arg: args) {
             stack_manager.push(arg);
         }
 
@@ -130,8 +149,7 @@ struct VM {
         uint32_t localStartsAt = stack_manager.sp - totalArgs;
 
         // Push NIL for additional local variable slots
-        uint8_t additionalLocals = targetFunction->localCount > totalArgs ?
-                                   targetFunction->localCount - totalArgs : 0;
+        uint8_t additionalLocals = targetFunction->localCount > totalArgs ? targetFunction->localCount - totalArgs : 0;
 
         for (uint8_t i = 0; i < additionalLocals; i++) {
             stack_manager.push(Value::createNIL());
