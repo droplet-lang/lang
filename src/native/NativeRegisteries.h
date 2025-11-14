@@ -24,6 +24,7 @@ inline void registerNative(const BuiltinInfo& func) {
 }
 
 inline void initCoreBuiltins() {
+    // Core functions
     registerNative({"exit", Type::Void(), {}});
     registerNative({"print", Type::Void(), {}});
     registerNative({"println", Type::Void(), {}});
@@ -32,11 +33,10 @@ inline void initCoreBuiltins() {
     registerNative({"int", Type::Int(), {Type::Unknown()}});
     registerNative({"float", Type::Float(), {Type::Unknown()}});
     registerNative({"input", Type::String(), {}});
-    registerNative({"android_create_button", Type::String(), {}});
-    registerNative({"android_native_toast", Type::String(), {}});
     registerNative({"append", Type::Void(), {Type::List(Type::Unknown()), Type::Unknown()}});
     registerNative({"forEach", Type::Void(), {Type::Unknown()}});
 
+    // Android basic functions
     registerNative({"android_create_button", Type::String(), {}});
     registerNative({"android_native_toast", Type::String(), {}});
 
@@ -50,6 +50,12 @@ inline void initCoreBuiltins() {
     registerNative({"android_create_textview", Type::Int(), {}});
     registerNative({"android_create_imageview", Type::Int(), {}});
 
+    // Text Input (NEW)
+    registerNative({"android_create_edittext", Type::Int(), {}});
+    registerNative({"android_get_edittext_value", Type::String(), {}});
+    registerNative({"android_set_edittext_hint", Type::Null(), {}});
+    registerNative({"android_set_edittext_input_type", Type::Null(), {}});
+
     // View manipulation
     registerNative({"android_add_view_to_parent", Type::Null(), {}});
     registerNative({"android_set_view_text", Type::Null(), {}});
@@ -59,9 +65,26 @@ inline void initCoreBuiltins() {
     registerNative({"android_set_view_padding", Type::Null(), {}});
     registerNative({"android_set_view_size", Type::Null(), {}});
 
+    // Styling (NEW)
+    registerNative({"android_set_text_size", Type::Null(), {}});
+    registerNative({"android_set_text_color", Type::Null(), {}});
+    registerNative({"android_set_text_style", Type::Null(), {}});
+    registerNative({"android_set_view_margin", Type::Null(), {}});
+    registerNative({"android_set_view_gravity", Type::Null(), {}});
+    registerNative({"android_set_view_elevation", Type::Null(), {}});
+    registerNative({"android_set_view_corner_radius", Type::Null(), {}});
+    registerNative({"android_set_view_border", Type::Null(), {}});
+
     // RecyclerView specific
     registerNative({"android_recyclerview_add_item", Type::Null(), {}});
     registerNative({"android_recyclerview_clear", Type::Null(), {}});
+
+    // Toolbar and Navigation
+    registerNative({"android_set_toolbar_title", Type::Null(), {}});
+    registerNative({"android_create_screen", Type::Int(), {}});
+    registerNative({"android_navigate_to_screen", Type::Null(), {}});
+    registerNative({"android_navigate_back", Type::Null(), {}});
+    registerNative({"android_set_back_button_visible", Type::Null(), {}});
 }
 
 #endif //DROPLET_NATIVEREGISTERIES_H

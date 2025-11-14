@@ -16,7 +16,7 @@
 
 #include <iostream>
 
-#include "../vm/VM.h"
+
 
 // Native print function
 void native_print(VM& vm, const uint8_t argc) {
@@ -317,3 +317,63 @@ void native_forEach_simple(VM& vm, const uint8_t argc) {
 
     vm.stack_manager.push(Value::createNIL());
 }
+
+void native_tcp_create(VM& vm, const uint8_t argc) {
+    if (argc != 2) { vm.stack_manager.pop(); vm.stack_manager.push(Value::createNIL()); return; }
+
+    Value portVal = vm.stack_manager.pop();
+    Value hostVal = vm.stack_manager.pop();
+
+    std::string host = hostVal.toString();
+    int port = std::stoi(portVal.toString());
+
+    ObjTCP* tcp = vm.allocator.allocate_tcp(host, port);
+    vm.stack_manager.push(Value::createTCP(tcp));
+}
+
+void native_tcp_connect(VM& vm, const uint8_t argc) {
+    if (argc != 1) { vm.stack_manager.pop(); vm.stack_manager.push(Value::createBOOL(false)); return; }
+    Value tcpVal = vm.stack_manager.pop();
+    ObjTCP* tcp = dynamic_cast<ObjTCP*>(tcpVal.current_value.object);
+    if (!tcp) { vm.stack_manager.push(Value::createBOOL(false)); return; }
+
+    tcp->is_connected = tcp->tcp_impl->connect(tcp->host, tcp->port);
+    vm.stack_manager.push(Value::createBOOL(tcp->is_connected));
+}
+
+void native_tcp_send(VM& vm, const uint8_t argc) {
+    if (argc != 2) { vm.stack_manager.pop(); vm.stack_manager.pop(); vm.stack_manager.push(Value::createBOOL(false)); return; }
+    Value dataVal = vm.stack_manager.pop();
+    Value tcpVal = vm.stack_manager.pop();
+    ObjTCP* tcp = dynamic_cast<ObjTCP*>(tcpVal.current_value.object);
+    if (!tcp || !tcp->is_connected) { vm.stack_manager.push(Value::createBOOL(false)); return; }
+
+    bool ok = tcp->tcp_impl->send(dataVal.toString());
+    vm.stack_manager.push(Value::createBOOL(ok));
+}
+
+void native_tcp_receive(VM& vm, const uint8_t argc) {
+    if (argc != 2) { vm.stack_manager.pop(); vm.stack_manager.pop(); vm.stack_manager.push(Value::createNIL()); return; }
+    Value lenVal = vm.stack_manager.pop();
+    Value tcpVal = vm.stack_manager.pop();
+    ObjTCP* tcp = dynamic_cast<ObjTCP*>(tcpVal.current_value.object);
+    if (!tcp || !tcp->is_connected) { vm.stack_manager.push(Value::createNIL()); return; }
+
+    int len = std::stoi(lenVal.toString());
+    std::string data = tcp->tcp_impl->receive(len);
+    ObjString* str = vm.allocator.allocate_string(data);
+    vm.stack_manager.push(Value::createOBJECT(str));
+}
+
+void native_tcp_close(VM& vm, const uint8_t argc) {
+    if (argc != 1) { vm.stack_manager.pop(); vm.stack_manager.push(Value::createNIL()); return; }
+    Value tcpVal = vm.stack_manager.pop();
+    ObjTCP* tcp = dynamic_cast<ObjTCP*>(tcpVal.current_value.object);
+    if (!tcp) { vm.stack_manager.push(Value::createNIL()); return; }
+
+    tcp->tcp_impl->close();
+    tcp->is_connected = false;
+    vm.stack_manager.push(Value::createNIL());
+}
+
+

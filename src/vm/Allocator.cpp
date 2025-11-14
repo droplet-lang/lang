@@ -78,3 +78,9 @@ ObjBoundMethod* Allocator::allocate_bound_method(const Value receiver, const uin
     gc.allocNewObject(method);
     return method;
 }
+
+ObjTCP* Allocator::allocate_tcp(const std::string& host, int port) {
+    auto* tcp = new ObjTCP(host, port);
+    gc.allocNewObject(tcp);
+    return tcp;
+}

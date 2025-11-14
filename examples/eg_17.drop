@@ -1,0 +1,14 @@
+fn main() -> void {
+    let tcp = tcp_create("127.0.0.1", 8080)
+
+    if tcp_connect(tcp) {
+        println("Connected!")
+        tcp_send(tcp, "Hello Server\n")
+        response: str = tcp_receive(tcp, 1024)
+        println("Server response: ", response)
+        tcp_close(tcp)
+    }
+    else {
+        println("Failed to connect")
+    }
+}

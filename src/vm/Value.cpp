@@ -13,7 +13,6 @@
  * ============================================================
  */
 #include "Value.h"
-#include "Object.h"
 
 Value Value::createNIL() {
     return {};
@@ -57,6 +56,12 @@ std::string Value::toString() const {
             return current_value.b ? "true" : "false";
         case ValueType::NIL:
             return "nil";
+        case ValueType::TCP:
+            if (current_value.object) {
+                return current_value.object->get_representor();
+            } else {
+                return "nil";
+            }
         case ValueType::OBJECT:
             if (!current_value.object) return "nil";
 
@@ -95,6 +100,13 @@ std::string Value::toString() const {
     return "<unknown>";
 }
 
+Value Value::createTCP(Object* tcpObj) {
+    Value v;
+    v.type = ValueType::TCP;
+    v.current_value.object = tcpObj; // store ObjTCP pointer in object union
+    return v;
+}
+
 bool Value::isTruthy() const {
     switch(type) {
         case ValueType::NIL: return false;
@@ -102,6 +114,7 @@ bool Value::isTruthy() const {
         case ValueType::INT: return current_value.i != 0;
         case ValueType::DOUBLE: return current_value.d != 0.0;
         case ValueType::OBJECT: return current_value.object != nullptr;
+        case ValueType::TCP: return current_value.object != nullptr;
     }
     return false;
 }

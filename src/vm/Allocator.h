@@ -29,6 +29,7 @@ struct Allocator {
     ObjInstance *allocate_instance(const std::string &className);
     ObjFunction* allocate_function(uint32_t functionIndex);
     ObjBoundMethod* allocate_bound_method(Value receiver, uint32_t methodIndex);
+    ObjTCP* allocate_tcp(const std::string& host, int port);
 
     // stack root walker for GC
     void root_walker(const RWComplexGCFunction &walker);

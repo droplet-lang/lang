@@ -15,13 +15,12 @@
 #ifndef DROPLET_OBJECT_H
 #define DROPLET_OBJECT_H
 
+#include <memory>
 #include <ranges>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "defines.h"
 
 
 // Object will be fully manager by the Garbage Collector
@@ -140,5 +139,29 @@ public:
         return "<bound-method@" + std::to_string(methodIndex) + ">";
     }
 };
+
+struct ObjTCP final : Object {
+    std::unique_ptr<ITCP> tcp_impl;
+    bool is_connected = false;
+    std::string host;
+    int port;
+
+    ObjTCP(std::string h, int p)
+        : host(std::move(h)), port(p)
+    {
+#ifdef _WIN32
+        tcp_impl = std::make_unique<TCP_Win32>();
+#else
+        tcp_impl = std::make_unique<TCP_POSIX>();
+#endif
+    }
+
+    [[nodiscard]] std::string get_representor() const override {
+        return "<tcp:" + host + ":" + std::to_string(port) + ">";
+    }
+
+    void markChildren(const MarkerFunction fn) override {}
+};
+
 
 #endif //DROPLET_OBJECT_H

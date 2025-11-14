@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <string>
 
+#include "Object.h"
+
 struct Object;
 
 enum class ValueType {
@@ -24,7 +26,8 @@ enum class ValueType {
     BOOL = 1,
     INT = 2,
     DOUBLE = 3,
-    OBJECT = 4
+    OBJECT = 4,
+    TCP = 5
 };
 
 struct Value {
@@ -49,6 +52,8 @@ struct Value {
     static Value createDOUBLE(double v);
 
     static Value createOBJECT(Object* v);
+
+    static Value createTCP(Object *tcpObj);
 
     [[nodiscard]] std::string toString() const;
 
