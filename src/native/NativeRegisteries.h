@@ -37,6 +37,14 @@ inline void initCoreBuiltins() {
     registerNative({"append", Type::Void(), {Type::List(Type::Unknown()), Type::Unknown()}});
     registerNative({"forEach", Type::Void(), {Type::Unknown()}});
 
+    // String manipulation functions
+    registerNative({"str_len", Type::Int(), {Type::String()}});
+    registerNative({"str_find", Type::Int(), {Type::String(), Type::String(), Type::Int()}});
+    registerNative({"str_substr", Type::String(), {Type::String(), Type::Int(), Type::Int()}});
+    registerNative({"str_char_at", Type::String(), {Type::String(), Type::Int()}});
+    registerNative({"int_to_str", Type::String(), {Type::Int()}});
+    registerNative({"float_to_str", Type::String(), {Type::Float()}});
+
     registerNative({"android_create_button", Type::String(), {}});
     registerNative({"android_native_toast", Type::String(), {}});
 
@@ -62,6 +70,11 @@ inline void initCoreBuiltins() {
     // RecyclerView specific
     registerNative({"android_recyclerview_add_item", Type::Null(), {}});
     registerNative({"android_recyclerview_clear", Type::Null(), {}});
+
+    registerNative({"android_http_get", Type::Null(), {}});
+    registerNative({"android_http_post", Type::Null(), {}});
+    registerNative({"android_http_put", Type::Null(), {}});
+    registerNative({"android_http_delete", Type::Null(), {}});
 }
 
 #endif //DROPLET_NATIVEREGISTERIES_H

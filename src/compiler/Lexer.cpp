@@ -93,14 +93,34 @@ void Lexer::number() {
 }
 
 void Lexer::string() {
+    std::string result;
+
     while (peek() != '"' && peek() != '\0') {
-        if (peek() == '\n') line++;
-        advance();
+        if (peek() == '\\') {
+            advance(); // consume backslash
+            char escaped = peek();
+
+            switch (escaped) {
+                case 'n':  result += '\n'; advance(); break;
+                case 't':  result += '\t'; advance(); break;
+                case 'r':  result += '\r'; advance(); break;
+                case '\\': result += '\\'; advance(); break;
+                case '"':  result += '"';  advance(); break;
+                case '0':  result += '\0'; advance(); break;
+                default:
+                    // Unknown escape sequence - just include the character
+                    result += escaped;
+                    advance();
+                    break;
+            }
+        } else {
+            if (peek() == '\n') line++;
+            result += advance();
+        }
     }
 
     if (peek() == '"') advance(); // closing "
-    const std::string extracted = source.substr(start+1, current-start-2);
-    addToken(TokenType::STRING, extracted);
+    addToken(TokenType::STRING, result);
 }
 
 void Lexer::identifierOrKeyword() {

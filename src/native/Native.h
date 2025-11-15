@@ -27,6 +27,12 @@ void native_float(VM& vm, uint8_t argc);
 void native_exit(VM& vm, uint8_t argc);
 void native_append(VM& vm, uint8_t argc);
 void native_forEach_simple(VM& vm, uint8_t argc);
+void native_str_len(VM& vm, uint8_t argc);
+void native_str_find(VM& vm, uint8_t argc);
+void native_str_substr(VM& vm, uint8_t argc);
+void native_str_char_at(VM& vm, uint8_t argc);
+void native_int_to_str(VM& vm, uint8_t argc);
+void native_float_to_str(VM& vm, uint8_t argc);
 
 // made inline just to shut up compiler warning, no special case
 inline void register_native_functions(VM& vm) {
@@ -38,6 +44,12 @@ inline void register_native_functions(VM& vm) {
     vm.register_native("input", native_input);
     vm.register_native("append", native_append);
     vm.register_native("forEach", native_forEach_simple);
+    vm.register_native("str_len", native_str_len);
+    vm.register_native("str_find", native_str_find);
+    vm.register_native("str_substr", native_str_substr);
+    vm.register_native("str_char_at", native_str_char_at);
+    vm.register_native("int_to_str", native_int_to_str);
+    vm.register_native("float_to_str", native_float_to_str);
 }
 
 #endif //DROPLET_NATIVE_H

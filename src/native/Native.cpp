@@ -317,3 +317,145 @@ void native_forEach_simple(VM& vm, const uint8_t argc) {
 
     vm.stack_manager.push(Value::createNIL());
 }
+
+// String length - returns the length of a string
+void native_str_len(VM& vm, const uint8_t argc) {
+    if (argc < 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        vm.stack_manager.push(Value::createINT(0));
+        return;
+    }
+
+    Value strVal = vm.stack_manager.pop();
+    for (int i = 1; i < argc; i++) vm.stack_manager.pop();
+
+    std::string str = strVal.toString();
+    int length = static_cast<int>(str.length());
+
+    vm.stack_manager.push(Value::createINT(length));
+}
+
+// Find substring - returns index or -1 if not found
+// Usage: str_find(haystack, needle, startPos)
+void native_str_find(VM& vm, const uint8_t argc) {
+    if (argc < 3) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        vm.stack_manager.push(Value::createINT(-1));
+        return;
+    }
+
+    Value startPosVal = vm.stack_manager.pop();
+    Value needleVal = vm.stack_manager.pop();
+    Value haystackVal = vm.stack_manager.pop();
+    for (int i = 3; i < argc; i++) vm.stack_manager.pop();
+
+    std::string haystack = haystackVal.toString();
+    std::string needle = needleVal.toString();
+    int startPos = (startPosVal.type == ValueType::INT) ? startPosVal.current_value.i : 0;
+
+    if (startPos < 0 || startPos >= static_cast<int>(haystack.length())) {
+        vm.stack_manager.push(Value::createINT(-1));
+        return;
+    }
+
+    size_t pos = haystack.find(needle, startPos);
+    int result = (pos != std::string::npos) ? static_cast<int>(pos) : -1;
+
+    vm.stack_manager.push(Value::createINT(result));
+}
+
+// Substring - extract substring from start with length
+// Usage: str_substr(string, start, length)
+void native_str_substr(VM& vm, const uint8_t argc) {
+    if (argc < 3) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        ObjString* empty = vm.allocator.allocate_string("");
+        vm.stack_manager.push(Value::createOBJECT(empty));
+        return;
+    }
+
+    Value lengthVal = vm.stack_manager.pop();
+    Value startVal = vm.stack_manager.pop();
+    Value strVal = vm.stack_manager.pop();
+    for (int i = 3; i < argc; i++) vm.stack_manager.pop();
+
+    std::string str = strVal.toString();
+    int start = (startVal.type == ValueType::INT) ? startVal.current_value.i : 0;
+    int length = (lengthVal.type == ValueType::INT) ? lengthVal.current_value.i : 0;
+
+    if (start < 0 || start >= static_cast<int>(str.length()) || length <= 0) {
+        ObjString* empty = vm.allocator.allocate_string("");
+        vm.stack_manager.push(Value::createOBJECT(empty));
+        return;
+    }
+
+    std::string result = str.substr(start, length);
+    ObjString* resultStr = vm.allocator.allocate_string(result);
+    vm.stack_manager.push(Value::createOBJECT(resultStr));
+}
+
+// Character at position
+// Usage: str_char_at(string, pos)
+void native_str_char_at(VM& vm, const uint8_t argc) {
+    if (argc < 2) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        ObjString* empty = vm.allocator.allocate_string("");
+        vm.stack_manager.push(Value::createOBJECT(empty));
+        return;
+    }
+
+    Value posVal = vm.stack_manager.pop();
+    Value strVal = vm.stack_manager.pop();
+    for (int i = 2; i < argc; i++) vm.stack_manager.pop();
+
+    std::string str = strVal.toString();
+    int pos = (posVal.type == ValueType::INT) ? posVal.current_value.i : 0;
+
+    if (pos < 0 || pos >= static_cast<int>(str.length())) {
+        ObjString* empty = vm.allocator.allocate_string("");
+        vm.stack_manager.push(Value::createOBJECT(empty));
+        return;
+    }
+
+    std::string result(1, str[pos]);
+    ObjString* resultStr = vm.allocator.allocate_string(result);
+    vm.stack_manager.push(Value::createOBJECT(resultStr));
+}
+
+// Int to string conversion
+// Usage: int_to_str(number)
+void native_int_to_str(VM& vm, const uint8_t argc) {
+    if (argc < 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        ObjString* zero = vm.allocator.allocate_string("0");
+        vm.stack_manager.push(Value::createOBJECT(zero));
+        return;
+    }
+
+    Value intVal = vm.stack_manager.pop();
+    for (int i = 1; i < argc; i++) vm.stack_manager.pop();
+
+    int num = (intVal.type == ValueType::INT) ? intVal.current_value.i : 0;
+    std::string result = std::to_string(num);
+    ObjString* resultStr = vm.allocator.allocate_string(result);
+    vm.stack_manager.push(Value::createOBJECT(resultStr));
+}
+
+// Float to string conversion
+// Usage: float_to_str(number)
+void native_float_to_str(VM& vm, const uint8_t argc) {
+    if (argc < 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        ObjString* zero = vm.allocator.allocate_string("0.0");
+        vm.stack_manager.push(Value::createOBJECT(zero));
+        return;
+    }
+
+    Value floatVal = vm.stack_manager.pop();
+    for (int i = 1; i < argc; i++) vm.stack_manager.pop();
+
+    double num = (floatVal.type == ValueType::DOUBLE) ? floatVal.current_value.d : 0.0;
+    std::string result = std::to_string(num);
+    ObjString* resultStr = vm.allocator.allocate_string(result);
+    vm.stack_manager.push(Value::createOBJECT(resultStr));
+}
