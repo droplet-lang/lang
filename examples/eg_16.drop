@@ -1,83 +1,329 @@
-// Example 1: Simple forEach with a named function
-fn printNumber(n: int) -> void {
-    println("Number: ", n)
+class Android {
+    fn create_linearlayout(orientation: int, parentId: int) -> int {
+        return android_create_linearlayout(orientation, parentId) as int
+    }
+
+    fn create_scrollview(parentId: int) -> int {
+        return android_create_scrollview(parentId) as int
+    }
+
+    fn create_cardview(parentId: int, elevation: int, cornerRadius: int) -> int {
+        return android_create_cardview(parentId, elevation, cornerRadius) as int
+    }
+
+    fn create_recyclerview(parentId: int, layoutType: int) -> int {
+        return android_create_recyclerview(parentId, layoutType) as int
+    }
+
+    fn create_textview(text: str, parentId: int) -> int {
+        return android_create_textview(text, parentId) as int
+    }
+
+    fn create_imageview(path: str, parentId: int, w: int, h: int) -> int {
+        return android_create_imageview(path, parentId, w, h) as int
+    }
+
+    fn create_button(label: str, callback: fn() -> void, parentId: int) -> int {
+        return android_create_button(label, callback, parentId) as int
+    }
+
+    fn set_view_background_color(id: int, color: int) -> void {
+        android_set_view_background_color(id, color)
+    }
+
+    fn set_view_padding(id: int, left: int, top: int, right: int, bottom: int) -> void {
+        android_set_view_padding(id, left, top, right, bottom)
+    }
+
+    fn set_view_size(id: int, width: int, height: int) -> void {
+        android_set_view_size(id, width, height)
+    }
+
+    fn recyclerview_add_item(id: int, txt: str) -> void {
+        android_recyclerview_add_item(id, txt)
+    }
+
+    fn recyclerview_clear(id: int) -> void {
+        android_recyclerview_clear(id)
+    }
+
+    fn toast(msg: str) -> void {
+        android_native_toast(msg)
+    }
+
+    fn set_toolbar_title(title: str) -> void {
+        android_set_toolbar_title(title)
+    }
+
+    fn create_screen(name: str) -> int {
+        return android_create_screen(name) as int
+    }
+
+    fn navigate_to_screen(id: int) -> void {
+        android_navigate_to_screen(id)
+    }
+
+    fn set_text_size(id: int, size: int) -> void {
+        android_set_text_size(id, size)
+    }
+
+    fn set_text_color(id: int, color: int) -> void {
+        android_set_text_color(id, color)
+    }
+
+    fn set_text_style(id: int, style: int) -> void {
+        android_set_text_style(id, style)
+    }
+
+    fn set_view_margin(id: int, left: int, top: int, right: int, bottom: int) -> void {
+        android_set_view_margin(id, left, top, right, bottom)
+    }
+
+    fn set_view_gravity(id: int, gravity: int) -> void {
+        android_set_view_gravity(id, gravity)
+    }
+
+    fn set_view_elevation(id: int, elevation: int) -> void {
+        android_set_view_elevation(id, elevation)
+    }
+
+    fn set_view_text(id: int, text: str) -> void {
+        android_set_view_text(id, text)
+    }
+
+    fn set_view_corner_radius(id: int, radius: int) -> void {
+        android_set_view_corner_radius(id, radius)
+    }
+
+    fn http_get(url: str, callback: fn(int, str, int) -> void) -> void {
+        android_http_get(url, callback, "")
+    }
+
+    fn http_post(url: str, body: str, callback: fn(int, str, int) -> void) -> void {
+        android_http_post(url, body, callback, "")
+    }
+
+    fn http_put(url: str, body: str, callback: fn(int, str, int) -> void) -> void {
+        android_http_put(url, body, callback, "")
+    }
+
+    fn http_delete(url: str, callback: fn(int, str, int) -> void) -> void {
+        android_http_delete(url, callback, "")
+    }
+
+    fn color_rgb(r: int, g: int, b: int) -> int {
+        let a = 255
+        return (a * 16777216) + (r * 65536) + (g * 256) + b
+    }
+}
+
+class CoffeeShopApp {
+    android: Android
+    recyclerView: int
+    loadingText: int
+    refreshBtn: int
+    itemCount: int
+
+    new(a: Android) {
+        self.android = a
+        self.recyclerView = -1
+        self.loadingText = -1
+        self.refreshBtn = -1
+        self.itemCount = 0
+    }
+
+    fn setup() -> void {
+        self.android.set_toolbar_title("Coffee Shop Menu")
+
+        // Create main scroll container
+        let scroll = self.android.create_scrollview(-1)
+
+        // Header Card
+        let headerCard = self.android.create_cardview(scroll, 8, 16)
+        self.android.set_view_background_color(headerCard, self.android.color_rgb(139, 69, 19))
+        self.android.set_view_padding(headerCard, 20, 20, 20, 20)
+        self.android.set_view_margin(headerCard, 16, 16, 16, 8)
+
+        let headerTitle = self.android.create_textview("☕ Coffee Menu", headerCard)
+        self.android.set_text_size(headerTitle, 28)
+        self.android.set_text_color(headerTitle, self.android.color_rgb(255, 255, 255))
+        self.android.set_text_style(headerTitle, 1)
+        self.android.set_view_gravity(headerTitle, 1)
+
+        let headerSubtitle = self.android.create_textview("Fresh & Delicious", headerCard)
+        self.android.set_text_size(headerSubtitle, 16)
+        self.android.set_text_color(headerSubtitle, self.android.color_rgb(255, 228, 196))
+        self.android.set_view_gravity(headerSubtitle, 1)
+        self.android.set_view_margin(headerSubtitle, 0, 8, 0, 0)
+
+        // Refresh button
+        self.refreshBtn = self.android.create_button("🔄 Refresh Menu", self.load_products, scroll)
+        self.android.set_view_background_color(self.refreshBtn, self.android.color_rgb(76, 175, 80))
+        self.android.set_text_color(self.refreshBtn, self.android.color_rgb(255, 255, 255))
+        self.android.set_view_corner_radius(self.refreshBtn, 8)
+        self.android.set_view_elevation(self.refreshBtn, 4)
+        self.android.set_view_padding(self.refreshBtn, 24, 16, 24, 16)
+        self.android.set_view_margin(self.refreshBtn, 16, 8, 16, 16)
+
+        // Loading text
+        self.loadingText = self.android.create_textview("Loading menu...", scroll)
+        self.android.set_text_size(self.loadingText, 16)
+        self.android.set_text_color(self.loadingText, self.android.color_rgb(100, 100, 100))
+        self.android.set_view_gravity(self.loadingText, 1)
+        self.android.set_view_margin(self.loadingText, 16, 8, 16, 8)
+        self.android.set_text_style(self.loadingText, 2)
+
+        // RecyclerView for items
+        self.recyclerView = self.android.create_recyclerview(scroll, 0)
+        self.android.set_view_margin(self.recyclerView, 8, 8, 8, 16)
+
+        // Load products on startup
+        self.load_products()
+    }
+
+    fn load_products() -> void {
+        self.android.set_view_text(self.loadingText, "⏳ Loading menu items...")
+        self.android.recyclerview_clear(self.recyclerView)
+        self.itemCount = 0
+
+        let url = "https://raw.githubusercontent.com/svpz/mockfake/refs/heads/main/bhajans.json"
+        self.android.http_get(url, self.on_products_loaded)
+    }
+
+    fn on_products_loaded(success: int, response: str, statusCode: int) -> void {
+        if success == 0 {
+            self.android.set_view_text(self.loadingText, "❌ Failed to load menu. Please try again.")
+            self.android.toast("Error loading menu")
+            return
+        }
+
+        self.android.set_view_text(self.loadingText, "✅ Menu loaded successfully!")
+
+        // Parse the response and display items
+        self.parse_and_display(response)
+    }
+
+    fn parse_and_display(json: str) -> void {
+        let items = self.extract_items(json)
+
+        if items == 0 {
+            self.android.toast("No items found in response")
+            self.android.set_view_text(self.loadingText, "⚠️ No menu items found")
+            return
+        }
+
+        let countStr = int_to_str(items) as str
+        self.android.toast("Loaded " + countStr + " items!")
+        self.android.set_view_text(self.loadingText, "✅ Showing " + countStr + " coffee items")
+    }
+
+    fn extract_items(json: str) -> int {
+        let count = 0
+        let pos = 0
+        let len = str_len(json) as int
+
+        // Look for each product by finding "id": pattern
+        while pos < len {
+            let idPos = str_find(json, "\"id\":", pos) as int
+            if idPos == -1 {
+                return count
+            }
+
+            pos = idPos + 5
+
+            // Extract title
+            let titlePos = str_find(json, "\"title\":", pos) as int
+            if titlePos == -1 {
+                return count
+            }
+            let title = self.extract_field(json, titlePos + 9)
+
+            // Extract subtitle
+            let subtitlePos = str_find(json, "\"subtitle\":", pos) as int
+            let subtitle = ""
+            if subtitlePos != -1 {
+                subtitle = self.extract_field(json, subtitlePos + 12)
+            }
+
+            // Extract price
+            let pricePos = str_find(json, "\"price\":", pos) as int
+            let price = ""
+            if pricePos != -1 {
+                price = self.extract_number(json, pricePos + 8)
+            }
+
+            // Extract rating
+            let ratingPos = str_find(json, "\"rating\":", pos) as int
+            let rating = ""
+            if ratingPos != -1 {
+                rating = self.extract_number(json, ratingPos + 9)
+            }
+
+            // Extract category
+            let categoryPos = str_find(json, "\"categoryTitle\":", pos) as int
+            let category = ""
+            if categoryPos != -1 {
+                category = self.extract_field(json, categoryPos + 17)
+            }
+
+            // Create display string
+            let displayText = "☕ " + title
+            if subtitle != "" {
+                displayText = displayText + "\n   " + subtitle
+            }
+            if category != "" {
+                displayText = displayText + "\n   Category: " + category
+            }
+            if rating != "" {
+                displayText = displayText + "\n   ⭐ Rating: " + rating
+            }
+            if price != "" {
+                displayText = displayText + "\n   💰 Price: $" + price
+            }
+
+            self.android.recyclerview_add_item(self.recyclerView, displayText)
+            count = count + 1
+
+            // Move past this item (skip ahead to avoid finding same id again)
+            pos = pos + 100
+        }
+
+        return count
+    }
+
+    fn extract_field(json: str, startPos: int) -> str {
+        let endPos = str_find(json, "\"", startPos) as int
+        if endPos == -1 {
+            return ""
+        }
+        let sss = str_substr(json, startPos, endPos - startPos) as str
+        return sss
+    }
+
+    fn extract_number(json: str, startPos: int) -> str {
+        let result = ""
+        let pos = startPos
+        let len = str_len(json) as int
+
+        while pos < len {
+            let ch = str_char_at(json, pos) as str
+            if ch == "0" || ch == "1" || ch == "2" || ch == "3" || ch == "4" ||
+               ch == "5" || ch == "6" || ch == "7" || ch == "8" || ch == "9" || ch == "." {
+                result = result + ch
+                pos = pos + 1
+            } else {
+                return result
+            }
+        }
+        return result
+    }
 }
 
 fn main() -> void {
-    let numbers: list[int] = [1, 2, 3, 4, 5]
-    
-    println("=== Example 1: Print all numbers ===")
-    forEach(numbers, printNumber)
-    
-    // Example 2: Using forEach with a different function
-    println("\n=== Example 2: Print squares ===")
-    forEach(numbers, printSquare)
-    
-    // Example 3: forEach with strings
-    let names: list[str] = ["Alice", "Bob", "Charlie"]
-    println("\n=== Example 3: Greet each person ===")
-    forEach(names, greet)
-    
-    // Example 4: Using a method reference
-    let processor: DataProcessor = new DataProcessor(10)
-    println("\n=== Example 4: Process with method ===")
-    forEach(numbers, processor.process)
-    
-    // Example 5: More complex data
-    let data: list[int] = [100, 200, 300, 400, 500]
-    println("\n=== Example 5: Format currency ===")
-    forEach(data, formatAsCurrency)
-}
+    let android = Android()
+    let app = CoffeeShopApp(android)
 
-fn printSquare(n: int) -> void {
-    let square: int = n * n
-    println(n, " squared = ", square)
-}
+    app.setup()
 
-fn greet(name: str) -> void {
-    println("Hello, ", name, "!")
-}
-
-fn formatAsCurrency(amount: int) -> void {
-    println("$", amount, ".00")
-}
-
-// Class example with method reference
-class DataProcessor {
-    multiplier: int
-    
-    new(mult: int) {
-        self.multiplier = mult
-    }
-    
-    fn process(value: int) -> void {
-        let result: int = value * self.multiplier
-        println("Processed: ", value, " -> ", result)
-    }
-}
-
-// Bonus: Combining with other operations
-class Logger {
-    prefix: str
-    
-    new(pfx: str) {
-        self.prefix = pfx
-    }
-    
-    fn log(message: str) -> void {
-        println("[", self.prefix, "] ", message)
-    }
-}
-
-fn demoLogging() -> void {
-    let logger: Logger = new Logger("INFO")
-    let messages: list[str] = ["Starting application", "Loading config", "Ready"]
-    
-    println("\n=== Bonus: Logger example ===")
-    forEach(messages, logger.log)
-}
-
-fn main() {
-    // Call the bonus demo
-    demoLogging()
+    android.toast("Coffee Shop App Loaded!")
 }
