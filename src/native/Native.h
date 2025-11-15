@@ -33,6 +33,8 @@ void native_str_substr(VM& vm, uint8_t argc);
 void native_str_char_at(VM& vm, uint8_t argc);
 void native_int_to_str(VM& vm, uint8_t argc);
 void native_float_to_str(VM& vm, uint8_t argc);
+void native_json_get(VM& vm, const uint8_t argc);
+void native_json_array_items(VM& vm, const uint8_t argc);
 
 // made inline just to shut up compiler warning, no special case
 inline void register_native_functions(VM& vm) {
@@ -50,6 +52,8 @@ inline void register_native_functions(VM& vm) {
     vm.register_native("str_char_at", native_str_char_at);
     vm.register_native("int_to_str", native_int_to_str);
     vm.register_native("float_to_str", native_float_to_str);
+    vm.register_native("native_json_get", native_json_get);
+    vm.register_native("native_json_array_items", native_json_array_items);
 }
 
 #endif //DROPLET_NATIVE_H

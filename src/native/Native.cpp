@@ -459,3 +459,104 @@ void native_float_to_str(VM& vm, const uint8_t argc) {
     ObjString* resultStr = vm.allocator.allocate_string(result);
     vm.stack_manager.push(Value::createOBJECT(resultStr));
 }
+
+// JSON parsing helper - extract value for a key within bounds
+void native_json_get(VM& vm, const uint8_t argc) {
+    if (argc < 3) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        ObjString* empty = vm.allocator.allocate_string("");
+        vm.stack_manager.push(Value::createOBJECT(empty));
+        return;
+    }
+
+    Value endPosVal = vm.stack_manager.pop();
+    Value keyVal = vm.stack_manager.pop();
+    Value jsonVal = vm.stack_manager.pop();
+    for (int i = 3; i < argc; i++) vm.stack_manager.pop();
+
+    std::string json = jsonVal.toString();
+    std::string key = "\"" + keyVal.toString() + "\":";
+    int endPos = (endPosVal.type == ValueType::INT) ? endPosVal.current_value.i : json.length();
+
+    // Find the key
+    size_t keyPos = json.find(key);
+    if (keyPos == std::string::npos || keyPos > (size_t)endPos) {
+        ObjString* empty = vm.allocator.allocate_string("");
+        vm.stack_manager.push(Value::createOBJECT(empty));
+        return;
+    }
+
+    // Skip the key and any whitespace
+    size_t valueStart = keyPos + key.length();
+    while (valueStart < json.length() && (json[valueStart] == ' ' || json[valueStart] == '\t')) {
+        valueStart++;
+    }
+
+    if (valueStart >= json.length()) {
+        ObjString* empty = vm.allocator.allocate_string("");
+        vm.stack_manager.push(Value::createOBJECT(empty));
+        return;
+    }
+
+    // Check if value is a string (starts with quote)
+    if (json[valueStart] == '"') {
+        valueStart++; // Skip opening quote
+        size_t valueEnd = json.find('"', valueStart);
+        if (valueEnd != std::string::npos && valueEnd <= (size_t)endPos) {
+            std::string value = json.substr(valueStart, valueEnd - valueStart);
+            ObjString* resultStr = vm.allocator.allocate_string(value);
+            vm.stack_manager.push(Value::createOBJECT(resultStr));
+            return;
+        }
+    }
+
+    ObjString* empty = vm.allocator.allocate_string("");
+    vm.stack_manager.push(Value::createOBJECT(empty));
+}
+
+// Find array elements
+void native_json_array_items(VM& vm, const uint8_t argc) {
+    if (argc < 1) {
+        for (int i = 0; i < argc; i++) vm.stack_manager.pop();
+        ObjArray* arr = vm.allocator.allocate_array();
+        vm.stack_manager.push(Value::createOBJECT(arr));
+        return;
+    }
+
+    Value jsonVal = vm.stack_manager.pop();
+    for (int i = 1; i < argc; i++) vm.stack_manager.pop();
+
+    std::string json = jsonVal.toString();
+    ObjArray* result = vm.allocator.allocate_array();
+
+    // Find opening bracket
+    size_t arrayStart = json.find('[');
+    if (arrayStart == std::string::npos) {
+        vm.stack_manager.push(Value::createOBJECT(result));
+        return;
+    }
+
+    int depth = 0;
+    size_t objStart = arrayStart;
+
+    for (size_t i = arrayStart; i < json.length(); i++) {
+        if (json[i] == '{') {
+            if (depth == 0) {
+                objStart = i;
+            }
+            depth++;
+        } else if (json[i] == '}') {
+            depth--;
+            if (depth == 0) {
+                // Found complete object
+                std::string obj = json.substr(objStart, i - objStart + 1);
+                ObjString* objStr = vm.allocator.allocate_string(obj);
+                result->value.push_back(Value::createOBJECT(objStr));
+            }
+        } else if (json[i] == ']' && depth == 0) {
+            break;
+        }
+    }
+
+    vm.stack_manager.push(Value::createOBJECT(result));
+}
